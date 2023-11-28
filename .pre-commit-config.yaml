@@ -22,6 +22,7 @@ repos:
         types: [text]
         stages: [commit, push, manual]
       - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
         name: Trim Trailing Whitespace
         entry: trailing-whitespace-fixer
         language: system
