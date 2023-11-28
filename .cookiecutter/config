@@ -1,0 +1,5 @@
+# Change these at your peril:
+export PROJECT_NAME=ASF Installer Survey
+export REPO_NAME=asf_installer_survey
+export DESCRIPTION=Code for cleaning and analysing the ASF Installer Survey.
+export PROJECT_OPENNESS=public
