@@ -16,6 +16,9 @@
 
 # %%
 import pandas
+
+from datetime import datetime
+
 from asf_installer_survey.utils.cleaning import (
     collapse_select_all,
     merge_two_questions,
@@ -1122,11 +1125,15 @@ data[
     merge_column_1="Do you offer heat batteries to accompany your heat pump installations?",
     merge_column_2="Do you offer heat batteries to accompany your heat pump installations?.1",
     merge_column_name="Do you offer heat batteries to accompany your heat pump installations?",
-    remove_merge_columns=True,
 )[
     "Do you offer heat batteries to accompany your heat pump installations?"
 ].pipe(
     pandas.Categorical, categories=["Yes", "No", "Don't know"], ordered=False
+)
+
+# Remove dedundant column
+data = data.drop(
+    columns="Do you offer heat batteries to accompany your heat pump installations?.1"
 )
 
 # %% [markdown]
@@ -1197,7 +1204,6 @@ what is the most important factor for you when choosing which thermal store or h
 what is the most important factor for you when choosing which thermal store or hot water system to fit?Please select one option..1""",
         merge_column_name="""If a customer doesn’t specify what they want with their heat pump, \
 what is the most important factor for you when choosing which thermal store or hot water system to fit? Please select one option.""",
-        remove_merge_columns=True,
     )[
         """If a customer doesn’t specify what they want with their heat pump, \
 what is the most important factor for you when choosing which thermal store or hot water system to fit? Please select one option."""
@@ -1218,6 +1224,16 @@ what is the most important factor for you when choosing which thermal store or h
     .rename_categories({"Other (please specify)": "Other", "Don’t know": "Don't know"})
 )
 
+# Remove dedundant columns
+data = data.drop(
+    columns=[
+        """If a customer doesn’t specify what they want with their heat pump, \
+what is the most important factor for you when choosing which thermal store or hot water system to fit?Please select one option.""",
+        """If a customer doesn’t specify what they want with their heat pump, \
+what is the most important factor for you when choosing which thermal store or hot water system to fit?Please select one option..1""",
+    ]
+)
+
 # %%
 # Merge Other responses.
 data = merge_two_questions(
@@ -1228,7 +1244,16 @@ what is the most important factor for you when choosing which thermal store or h
 what is the most important factor for you when choosing which thermal store or hot water system to fit?Please select one option..1""",
     merge_column_name="""If a customer doesn’t specify what they want with their heat pump, \
 what is the most important factor for you when choosing which thermal store or hot water system to fit? Other.""",
-    remove_merge_columns=True,
+)
+
+# Remove redundant columns
+data = data.drop(
+    columns=[
+        """Other (please specify):If a customer doesn’t specify what they want with their heat pump, \
+what is the most important factor for you when choosing which thermal store or hot water system to fit?Please select one option.""",
+        """Other (please specify):If a customer doesn’t specify what they want with their heat pump, \
+what is the most important factor for you when choosing which thermal store or hot water system to fit?Please select one option..1""",
+    ]
 )
 
 # %% [markdown]
@@ -1790,7 +1815,7 @@ data.loc[
 ] = data.loc[
     lambda df: df[exclusion_col] == "A contractor or freelancer", "Response ID"
 ].apply(
-    lambda _: []
+    lambda _: None
 )
 
 # %% [markdown]
@@ -1859,7 +1884,7 @@ data.loc[
     lambda df: df[exclusion_col] == "I’m a sole trader",
     "Why aren't you (Contractor) MCS certified? Other.",
 ] = data.loc[lambda df: df[exclusion_col] == "I’m a sole trader", "Response ID"].apply(
-    lambda _: []
+    lambda _: None
 )
 
 # %% [markdown]
@@ -2389,7 +2414,7 @@ data = collapse_select_all(
     df=data,
     select_all_columns="Have you done any retrofit or new build heat pump installations over the last 12 months?",
     collapsed_column_name="Have you done any retrofit or new build heat pump installations over the last 12 months? Select all that apply.",
-    remove_collapsed_columns=False,
+    remove_collapsed_columns=True,
 ).pipe(
     set_not_asked_responses,
     "Have you done any retrofit or new build heat pump installations over the last 12 months? Select all that apply.",
@@ -2667,7 +2692,7 @@ data.loc[
     ),
     "Response ID",
 ].apply(
-    lambda _: [not_asked]
+    lambda _: not_asked
 )
 
 # %% [markdown]
@@ -2738,7 +2763,7 @@ data.loc[
     ),
     "Response ID",
 ].apply(
-    lambda _: [not_asked]
+    lambda _: not_asked
 )
 
 # %% [markdown]
@@ -2809,7 +2834,7 @@ data.loc[
     ),
     "Response ID",
 ].apply(
-    lambda _: [not_asked]
+    lambda _: not_asked
 )
 
 # %% [markdown]
@@ -3178,11 +3203,16 @@ data[
     )
 )
 
-## Rename Other column
+# Rename Other column
 data = data.rename(
     columns={
         "Other (please specify):What’s the biggest barrier to you installing more heat pumps?Please select one option..1": "What’s the biggest barrier to you installing more heat pumps? Other. (Employees, contractors, sole traders)"
     }
+)
+
+# Drop redundant column
+data = data.drop(
+    columns="What’s the biggest barrier to you installing more heat pumps?Please select one option..1"
 )
 
 # %% [markdown]
@@ -3647,6 +3677,11 @@ data["I intend to offer heat pump repairs, servicing and maintenance: (Owners)"]
     )
 )
 
+# drop redundant column
+data = data.drop(
+    columns="I intend to offer heat pump repairs, servicing and maintenance:"
+)
+
 # %% [markdown]
 # ### I intend to offer heat pump repairs, servicing and maintenance:
 #
@@ -3682,6 +3717,11 @@ data[
         ],
         ordered=False,
     )
+)
+
+# drop redundant column
+data = data.drop(
+    columns="I intend to offer heat pump repairs, servicing and maintenance:.1"
 )
 
 # %% [markdown]
@@ -6558,3 +6598,361 @@ data[
         "Strongly agree",
     ],
 )
+
+# %% [markdown]
+# # Order Questions
+#
+# In this section, we'll add question numbers and reorder to match the survey flow.
+
+# %%
+column_dict = {
+    "Response ID": "0a. Response ID",
+    "Time Started": "0b. Time Started",
+    "Date Submitted": "0c. Date Submitted",
+    "Status": "0d. Status",
+    "How old are you?": "1. How old are you?",
+    "How would you describe your gender?": "2. How would you describe your gender?",
+    "How long have you worked in the plumbing and heating sector?": "3. How long have you worked in the plumbing and heating sector?",
+    "How long have you been working with heat pumps?": "4. How long have you been working with heat pumps?",
+    "Are you responding to this survey as…If multiple answers apply to you, select the option in which you’ve done the most heat pump installations in the last year.": "5. Are you responding to this survey as…",
+    "What size company do you own?": "6a. What size company do you own?",
+    "What size company do you work for?": "6b. What size company do you work for?",
+    "Do you work with family members in any of the following ways? Select all that apply.": "7. Do you work with family members in any of the following ways? Select all that apply.",
+    "Where is your company located?": "8. Where is your company located?",
+    "In which English region is your company located?": "9a. In which English region is your company located?",
+    "In which Scottish region is your company located?": "9b. In which Scottish region is your company located?",
+    "In which Welsh region is your company located?": "9c. In which Welsh region is your company located?",
+    "In which Northern Irish county is your company located?": "9d. In which Northern Irish county is your company located?",
+    "How far from your business location would you typically travel for jobs, approximately?": "10. How far from your business location would you typically travel for jobs, approximately?",
+    "What aspects of the company you own are you involved with? Select all that apply.": "11a. What aspects of the company you own are you involved with? Select all that apply.",
+    "What type of work do you do when you’re contracted for a job? Select all that apply.": "11b. What type of work do you do when you’re contracted for a job? Select all that apply.",
+    "What type of work do you do for the company you work for? Select all that apply.": "11c. What type of work do you do for the company you work for? Select all that apply.",
+    "Thinking of your company's overall heating work, what does it currently consist of?": "12a. Thinking of your company's overall heating work, what does it currently consist of?",
+    "Thinking of your overall heating work, what does it currently consist of?": "12b. Thinking of your overall heating work, what does it currently consist of?",
+    "Thinking of your company's overall heating work in 12 months time, what do you intend it to consist of?": "13a. Thinking of your company's overall heating work in 12 months time, what do you intend it to consist of?",
+    "Thinking of your overall heating work in 12 months time, what do you intend it to consist of?": "13b. Thinking of your overall heating work in 12 months time, what do you intend it to consist of?",
+    "Thinking of the heating systems your company installs, do you work on:": "14a. Thinking of the heating systems your company installs, do you work on:",
+    "Thinking of the heating systems you install, do you work on:": "14b. Thinking of the heating systems you install, do you work on:",
+    "Thinking of the heating systems your company services and maintains, do you work on:": "15a. Thinking of the heating systems your company services and maintains, do you work on:",
+    "Thinking of the heating systems you service and maintain, do you work on:": "15b. Thinking of the heating systems you service and maintain, do you work on:",
+    "What types of heat pump has your company installed over the last 12 months? Select all that apply.": "16a. What types of heat pump has your company installed over the last 12 months? Select all that apply.",
+    "What types of heat pump has your company installed over the last 12 months? Other.": "16ao. What types of heat pump has your company installed over the last 12 months? Other.",
+    "What types of heat pump have you installed over the last 12 months? Select all that apply.": "16b. What types of heat pump have you installed over the last 12 months? Select all that apply.",
+    "What types of heat pump have you installed over the last 12 months? Other.": "16bo. What types of heat pump have you installed over the last 12 months? Other.",
+    "What type of heat pump has your company installed most often over the last 12 months?Please select one option.": "17a. What type of heat pump has your company installed most often over the last 12 months? Please select one option.",
+    "Other (please specify):What type of heat pump has your company installed most often over the last 12 months?Please select one option.": "17ao. What type of heat pump has your company installed most often over the last 12 months? Other.",
+    "What type of heat pump have you installed most often over the last 12 months?Please select one option": "17b. What type of heat pump have you installed most often over the last 12 months? Please select one option",
+    "What type of heat pump have you installed most often over the last 12 months? Other.": "17bo. What type of heat pump have you installed most often over the last 12 months? Other.",
+    "Do you offer heat batteries to accompany your heat pump installations?": "18. Do you offer heat batteries to accompany your heat pump installations?",
+    "What barriers prevent you from offering heat batteries? You can select up to 3 options.": "19. What barriers prevent you from offering heat batteries? You can select up to 3 options.",
+    "What barriers prevent you from offering heat batteries? Other.": "19o. What barriers prevent you from offering heat batteries? Other.",
+    "If a customer doesn’t specify what they want with their heat pump, what is the most important factor for you when choosing which thermal store or hot water system to fit? Please select one option.": "20. If a customer doesn’t specify what they want with their heat pump, what is the most important factor for you when choosing which thermal store or hot water system to fit? Please select one option.",
+    "If a customer doesn’t specify what they want with their heat pump, what is the most important factor for you when choosing which thermal store or hot water system to fit? Other.": "20o. If a customer doesn’t specify what they want with their heat pump, what is the most important factor for you when choosing which thermal store or hot water system to fit? Other.",
+    "Is your business MCS certified for heat pump installations?": "21a. Is your business MCS certified for heat pump installations?",
+    "Are you personally registered as an MCS-certified heat pump installer?": "21b. Are you personally registered as an MCS-certified heat pump installer?",
+    "Is the firm you work for MCS certified for heat pump installations?": "21c. Is the firm you work for MCS certified for heat pump installations?",
+    "Which heat pump technologies is your business MCS certified to install? Select all that apply.": "22a. Which heat pump technologies is your business MCS certified to install? Select all that apply.",
+    "Which heat pump technologies are you MCS certified to install? Select all that apply.": "22b. Which heat pump technologies are you MCS certified to install? Select all that apply.",
+    "Which heat pump technologies is the firm you work for you MCS certified to install? Select all that apply.": "22c. Which heat pump technologies is the firm you work for you MCS certified to install? Select all that apply.",
+    "How long has your business been MCS certified for heat pump installations?": "23a. How long has your business been MCS certified for heat pump installations?",
+    "How long have you been MCS certified for heat pump installations?": "23b. How long have you been MCS certified for heat pump installations?",
+    "How long did the certification process take from application to certification? (Business)": "24a. How long did the certification process take from application to certification?",
+    "How long did the certification process take from application to certification? (Sole trader/contractor)": "24b. How long did the certification process take from application to certification?",
+    "Why isn't your business MCS certified? Select all that apply.": "25a. Why isn't your business MCS certified? Select all that apply.",
+    "Why isn't your business MCS certified? Other.": "25ao. Why isn't your business MCS certified? Other.",
+    "Why aren't you (Sole Trader) MCS certified? Select all that apply.": "25b. Why aren't you MCS certified? Select all that apply.",
+    "Why aren't you (Sole Trader) MCS certified? Other.": "25bo. Why aren't you MCS certified? Other.",
+    "Why aren't you (Contractor) MCS certified? Select all that apply.": "25c. Why aren't you MCS certified? Select all that apply.",
+    "Why aren't you (Contractor) MCS certified? Other.": "25co. Why aren't you (Contractor) MCS certified? Other.",
+    "Which heat pump technologies was your business MCS certified to install? Select all that apply.": "26a. Which heat pump technologies was your business MCS certified to install? Select all that apply.",
+    "Which heat pump technologies were you MCS certified to install? Select all that apply.": "26b. Which heat pump technologies were you MCS certified to install? Select all that apply.",
+    "Which heat pump technologies was the firm you work for MCS certified to install? Select all that apply.": "26c. Which heat pump technologies was the firm you work for MCS certified to install? Select all that apply.",
+    "How long was your business MCS certified for heat pump installations?": "27a. How long was your business MCS certified for heat pump installations?",
+    "How long were you MCS certified for heat pump installations?": "27b. How long were you MCS certified for heat pump installations?",
+    "Do you intend to reinstate your MCS certification with a new Nominated Technical Person?": "28. Do you intend to reinstate your MCS certification with a new Nominated Technical Person?",
+    "Why do you prefer to remain without MCS certification? Select all that apply.": "29. Why do you prefer to remain without MCS certification? Select all that apply.",
+    "Why do you prefer to remain without MCS certification? Other.": "29o. Why do you prefer to remain without MCS certification? Other.",
+    "Has your business done any retrofit or new build heat pump installations over the last 12 months? Select all that apply.": "30a. Has your business done any retrofit or new build heat pump installations over the last 12 months? Select all that apply.",
+    "Have you done any retrofit or new build heat pump installations over the last 12 months? Select all that apply.": "30b. Have you done any retrofit or new build heat pump installations over the last 12 months? Select all that apply.",
+    "Over the past 12 months, has your business done retrofit heat pump installations in any of the following properties? Select all that apply.": "31a. Over the past 12 months, has your business done retrofit heat pump installations in any of the following properties? Select all that apply.",
+    "Over the past 12 months, has your business done retrofit heat pump installations in any of the following properties? Other.": "31ao. Over the past 12 months, has your business done retrofit heat pump installations in any of the following properties? Other.",
+    "Over the past 12 months, have you done retrofit heat pump installations in any of the following properties? Select all that apply.": "31b. Over the past 12 months, have you done retrofit heat pump installations in any of the following properties? Select all that apply.",
+    "Over the past 12 months, have you done retrofit heat pump installations in any of the following properties? Other.": "31bo. Over the past 12 months, have you done retrofit heat pump installations in any of the following properties? Other.",
+    "Over the past 12 months, has your business done any new build heat pump installations in any of the following properties? Select all that apply.": "32a. Over the past 12 months, has your business done any new build heat pump installations in any of the following properties? Select all that apply.",
+    "Over the past 12 months, has your business done any new build heat pump installations in any of the following properties? Other.": "32ao. Over the past 12 months, has your business done any new build heat pump installations in any of the following properties? Other.",
+    "Over the past 12 months, have you done any new build heat pump installations in any of the following properties? Select all that apply.": "32b. Over the past 12 months, have you done any new build heat pump installations in any of the following properties? Select all that apply.",
+    "Over the past 12 months, have you done any new build heat pump installations in any of the following properties? Other.": "32bo. Over the past 12 months, have you done any new build heat pump installations in any of the following properties? Other.",
+    "Over the past 12 months, where has the majority of the heat pump installations your business has done been?": "33a. Over the past 12 months, where has the majority of the heat pump installations your business has done been?",
+    "Over the past 12 months, where has the majority of your heat pump installation work been?": "33b. Over the past 12 months, where has the majority of your heat pump installation work been?",
+    "Over the past 12 months, which of the following accounts for the majority of the retrofit heat pump installations your business has done?": "34a. Over the past 12 months, which of the following accounts for the majority of the retrofit heat pump installations your business has done?",
+    "Over the past 12 months, which of the following accounts for the majority of the retrofit heat pump installations your business has done? Other.": "34ao. Over the past 12 months, which of the following accounts for the majority of the retrofit heat pump installations your business has done? Other.",
+    "Over the past 12 months, which of the following accounts for the majority of your retrofit heat pump installations?": "34b. Over the past 12 months, which of the following accounts for the majority of your retrofit heat pump installations?",
+    "Over the past 12 months, which of the following accounts for the majority of your retrofit heat pump installations? Other.": "34bo. Over the past 12 months, which of the following accounts for the majority of your retrofit heat pump installations? Other.",
+    "Over the past 12 months, which of the following accounts for the majority of the new build heat pump installations your business has done?": "35a. Over the past 12 months, which of the following accounts for the majority of the new build heat pump installations your business has done?",
+    "Over the past 12 months, which of the following accounts for the majority of the new build heat pump installations your business has done? Other.": "35ao. Over the past 12 months, which of the following accounts for the majority of the new build heat pump installations your business has done? Other.",
+    "Over the past 12 months, which of the following accounts for the majority of your new build heat pump installations?": "35b. Over the past 12 months, which of the following accounts for the majority of your new build heat pump installations?",
+    "Over the past 12 months, which of the following accounts for the majority of your new build heat pump installations? Other.": "35bo. Over the past 12 months, which of the following accounts for the majority of your new build heat pump installations? Other.",
+    "In your business's retrofit work, does your business install heat pumps through: Select all that apply.": "36a. In your business's retrofit work, does your business install heat pumps through: Select all that apply.",
+    "In your business's retrofit work, does your business install heat pumps through: Other.": "36ao. In your business's retrofit work, does your business install heat pumps through: Other.",
+    "In your (Sole trader) retrofit work, do you install heat pumps through: Select all that apply.": "36b. In your retrofit work, do you install heat pumps through: Select all that apply.",
+    "In your (Sole trader) retrofit work, do you install heat pumps through: Other.": "36bo. In your retrofit work, do you install heat pumps through: Other.",
+    "In your (Employee) retrofit work, do you install heat pumps through: Select all that apply.": "36c. In your retrofit work, do you install heat pumps through: Select all that apply.",
+    "In your (Employee) retrofit work, do you install heat pumps through: Other.": "36co. In your retrofit work, do you install heat pumps through: Other.",
+    "In your (Contractor) retrofit work, do you install heat pumps through: Select all that apply.": "36d. In your retrofit work, do you install heat pumps through: Select all that apply.",
+    "In your (Contractor) retrofit work, do you install heat pumps through: Other.": "36do. In your retrofit work, do you install heat pumps through: Other.",
+    "Approximately how many heat pumps did your business install in the past twelve months?": "37a. Approximately how many heat pumps did your business install in the past twelve months?",
+    "Approximately how many heat pumps did you install in the past twelve months?": "37b. Approximately how many heat pumps did you install in the past twelve months?",
+    "Would you like your business to install more heat pumps each year?I'd like to install:": "38a. Would you like your business to install more heat pumps each year? I'd like to install:",
+    "Would you like to install more heat pumps each year?I'd like to install:": "38b. Would you like to install more heat pumps each year? I'd like to install:",
+    "What’s the biggest reason you have for wanting to reduce the number of heat pumps you install?Please select one option. (Owners)": "39a. What's the biggest reason you have for wanting to reduce the number of heat pumps you install? Please select one option.",
+    "What’s the biggest reason you have for wanting to reduce the number of heat pumps you install? Other. (Owners)": "39ao. What's the biggest reason you have for wanting to reduce the number of heat pumps you install? Other.",
+    "What’s the biggest reason you have for wanting to reduce the number of heat pumps you install?Please select one option. (Employees, contractors, sole traders)": "39b. What's the biggest reason you have for wanting to reduce the number of heat pumps you install? Please select one option.",
+    "What’s the biggest reason you have for wanting to reduce the number of heat pumps you install? Other. (Employees, contractors, sole traders)": "What's the biggest reason you have for wanting to reduce the number of heat pumps you install? Other.",
+    "What’s the biggest barrier to you installing more heat pumps? Please select one option. (Owners)": "40a. What's the biggest barrier to you installing more heat pumps? Please select one option.",
+    "What’s the biggest barrier to you installing more heat pumps? Other. (Owners)": "40ao. What's the biggest barrier to you installing more heat pumps? Other.",
+    "What’s the biggest barrier to you installing more heat pumps?Please select one option. (Employees, contractors, sole traders)": "40b. What's the biggest barrier to you installing more heat pumps? Please select one option.",
+    "What’s the biggest barrier to you installing more heat pumps? Other. (Employees, contractors, sole traders)": "40bo. What's the biggest barrier to you installing more heat pumps? Other.",
+    "Please indicate how you feel about the amount of time your business spends on: Business management (eg. recruitment, planning future of business and strategy)": "41a. Please indicate how you feel about the amount of time your business spends on: Business management (eg. recruitment, planning future of business and strategy)",
+    "Please indicate how you feel about the amount of time your business spends on: Business administration (eg. finances, paperwork, reporting)": "41a. Please indicate how you feel about the amount of time your business spends on: Business administration (eg. finances, paperwork, reporting)",
+    "Please indicate how you feel about the amount of time your business spends on: Training staff or apprentices": "41a. Please indicate how you feel about the amount of time your business spends on: Training staff or apprentices",
+    "Please indicate how you feel about the amount of time your business spends on: Sales, customer relations, and quotes": "41a. Please indicate how you feel about the amount of time your business spends on: Sales, customer relations, and quotes",
+    "Please indicate how you feel about the amount of time your business spends on: Heat pump system survey - on site": "41a. Please indicate how you feel about the amount of time your business spends on: Heat pump system survey - on site",
+    "Please indicate how you feel about the amount of time your business spends on: Heat pump system design - office based": "41a. Please indicate how you feel about the amount of time your business spends on: Heat pump system design - office based",
+    "Please indicate how you feel about the amount of time your business spends on: Emitter output calculations": "41a. Please indicate how you feel about the amount of time your business spends on: Emitter output calculations",
+    "Please indicate how you feel about the amount of time your business spends on: Ordering and delivery of materials and supplies, and monitoring stock levels": "41a. Please indicate how you feel about the amount of time your business spends on: Ordering and delivery of materials and supplies, and monitoring stock levels",
+    "Please indicate how you feel about the amount of time your business spends on: Planning permission process": "41a. Please indicate how you feel about the amount of time your business spends on: Planning permission process",
+    "Please indicate how you feel about the amount of time your business spends on: Installation of heat pump system (including heat pump unit, pipes, emitters)": "41a. Please indicate how you feel about the amount of time your business spends on: Installation of heat pump system (including heat pump unit, pipes, emitters)",
+    "Please indicate how you feel about the amount of time your business spends on: Heat pump commissioning and householder handover": "41a. Please indicate how you feel about the amount of time your business spends on: Heat pump commissioning and householder handover",
+    "Please indicate how you feel about the amount of time your business spends on: MCS, BUS, DNO and other post-installation paperwork": "41a. Please indicate how you feel about the amount of time your business spends on: MCS, BUS, DNO and other post-installation paperwork",
+    "Please indicate how you feel about the amount of time your business spends on: Heat pump servicing and maintenance": "41a. Please indicate how you feel about the amount of time your business spends on: Heat pump servicing and maintenance",
+    "Please indicate how you feel about the amount of time you spend on: Business management (eg. recruitment, planning future of business and strategy)": "41b. Please indicate how you feel about the amount of time you spend on: Business management (eg. recruitment, planning future of business and strategy)",
+    "Please indicate how you feel about the amount of time you spend on: Business administration (eg. finances, paperwork, reporting)": "41b. Please indicate how you feel about the amount of time you spend on: Business administration (eg. finances, paperwork, reporting)",
+    "Please indicate how you feel about the amount of time you spend on: Training staff or apprentices": "41b. Please indicate how you feel about the amount of time you spend on: Training staff or apprentices",
+    "Please indicate how you feel about the amount of time you spend on: Sales, customer relations, and quotes": "41b. Please indicate how you feel about the amount of time you spend on: Sales, customer relations, and quotes",
+    "Please indicate how you feel about the amount of time you spend on: Heat pump system survey - on site": "41b. Please indicate how you feel about the amount of time you spend on: Heat pump system survey - on site",
+    "Please indicate how you feel about the amount of time you spend on: Heat pump system design - office based": "41b. Please indicate how you feel about the amount of time you spend on: Heat pump system design - office based",
+    "Please indicate how you feel about the amount of time you spend on: Emitter output calculations": "41b. Please indicate how you feel about the amount of time you spend on: Emitter output calculations",
+    "Please indicate how you feel about the amount of time you spend on: Ordering and delivery of materials and supplies, and monitoring stock levels": "41b. Please indicate how you feel about the amount of time you spend on: Ordering and delivery of materials and supplies, and monitoring stock levels",
+    "Please indicate how you feel about the amount of time you spend on: Planning permission process": "41b. Please indicate how you feel about the amount of time you spend on: Planning permission process",
+    "Please indicate how you feel about the amount of time you spend on: Installation of heat pump system (including heat pump unit, pipes, emitters)": "41b. Please indicate how you feel about the amount of time you spend on: Installation of heat pump system (including heat pump unit, pipes, emitters)",
+    "Please indicate how you feel about the amount of time you spend on: Heat pump commissioning and householder handover": "41b. Please indicate how you feel about the amount of time you spend on: Heat pump commissioning and householder handover",
+    "Please indicate how you feel about the amount of time you spend on: MCS, BUS, DNO and other post-installation paperwork": "41b. Please indicate how you feel about the amount of time you spend on: MCS, BUS, DNO and other post-installation paperwork",
+    "Please indicate how you feel about the amount of time you spend on: Heat pump servicing and maintenance": "41b. Please indicate how you feel about the amount of time you spend on: Heat pump servicing and maintenance",
+    "Do you offer repairs, servicing and maintenance to heat pump customers?": "42a. Do you offer repairs, servicing and maintenance to heat pump customers?",
+    "Does the business you work for offer repairs, servicing and maintenance to heat pump customers?": "42b. Does the business you work for offer repairs, servicing and maintenance to heat pump customers?",
+    "My business offers heat pump repairs, servicing and maintenance:": "43a. My business offers heat pump repairs, servicing and maintenance:",
+    "I offer heat pump repairs, servicing and maintenance:": "43b. I offer heat pump repairs, servicing and maintenance:",
+    "The business I work for offers heat pump repairs, servicing and maintenance:": "43c. The business I work for offers heat pump repairs, servicing and maintenance:",
+    "Why do you only offer repairs, servicing and maintenance only for heat pump systems you have installed?": "44a. Why do you only offer repairs, servicing and maintenance only for heat pump systems you have installed?",
+    "Why do you only offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.": "44ao. Why do you only offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.",
+    "Why does the firm you work for offer repairs, servicing and maintenance only for heat pump systems you have installed?": "44b. Why does the firm you work for offer repairs, servicing and maintenance only for heat pump systems you have installed?",
+    "Why does the firm you work for offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.": "44bo. Why does the firm you work for offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.",
+    "Have you found any challenges working in heat pump repairs, servicing and maintenance?": "45. Have you found any challenges working in heat pump repairs, servicing and maintenance?",
+    "Have you found any challenges working in heat pump repairs, servicing and maintenance? Other.": "45o. Have you found any challenges working in heat pump repairs, servicing and maintenance? Other.",
+    "Do you expect to expand your work in heat pump repairs, servicing and maintenance?": "46. Do you expect to expand your work in heat pump repairs, servicing and maintenance?",
+    "When doing repairs, servicing or maintenance to installations by other installers, how often do you identify bad installation practice that negatively affects heat pump performance?": "47. When doing repairs, servicing or maintenance to installations by other installers, how often do you identify bad installation practice that negatively affects heat pump performance?",
+    "I intend to offer heat pump repairs, servicing and maintenance: (Owners)": "48a. I intend to offer heat pump repairs, servicing and maintenance:",
+    "I intend to offer heat pump repairs, servicing and maintenance: (Contractor/Soletrader)": "48b. I intend to offer heat pump repairs, servicing and maintenance:",
+    "The business I work for intends to offer heat pump repairs, servicing and maintenance:": "48c. The business I work for intends to offer heat pump repairs, servicing and maintenance:",
+    "Why do you intend to offer repairs, servicing and maintenance only for heat pump systems you have installed?": "49a. Why do you intend to offer repairs, servicing and maintenance only for heat pump systems you have installed?",
+    "Why do you intend to offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.": "49ao. Why do you intend to offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.",
+    "Why does the firm you work for intend to offer repairs, servicing and maintenance only for heat pump systems you have installed?": "49b. Why does the firm you work for intend to offer repairs, servicing and maintenance only for heat pump systems you have installed?",
+    "Why does the firm you work for intend to offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.": "49bo. Why does the firm you work for intend to offer repairs, servicing and maintenance only for heat pump systems you have installed? Other.",
+    "Why have you previously not offered repairs, servicing and maintenance?": "50. Why have you previously not offered repairs, servicing and maintenance?",
+    "Why have you previously not offered repairs, servicing and maintenance? Other.": "50o. Why have you previously not offered repairs, servicing and maintenance? Other.",
+    "Why do you now intend to move into heat pump repairs, servicing and maintenance?": "51. Why do you now intend to move into heat pump repairs, servicing and maintenance?",
+    "Why do you now intend to move into heat pump repairs, servicing and maintenance? Other.": "51o. Why do you now intend to move into heat pump repairs, servicing and maintenance? Other.",
+    "Why don’t you currently offer repairs, servicing and maintenance to customers?": "52a. Why don’t you currently offer repairs, servicing and maintenance to customers?",
+    "Why don’t you currently offer repairs, servicing and maintenance to customers? Other.": "52ao. Why don’t you currently offer repairs, servicing and maintenance to customers? Other.",
+    "Why doesn’t the business you work for currently offer repairs, servicing and maintenance to customers?": "52b. Why doesn’t the business you work for currently offer repairs, servicing and maintenance to customers?",
+    "Why doesn’t the business you work for currently offer repairs, servicing and maintenance to customers? Other.": "52bo. Why doesn’t the business you work for currently offer repairs, servicing and maintenance to customers? Other.",
+    "How often is your business unable to complete work related to a heat pump installation to the standard that you would like?": "53a. How often is your business unable to complete work related to a heat pump installation to the standard that you would like?",
+    "How often are you unable to complete work related to a heat pump installation to the standard that you would like?": "53b. How often are you unable to complete work related to a heat pump installation to the standard that you would like?",
+    "In which areas could you (Owners) improve the standard of your heat pump installations?": "54a. In which areas could you improve the standard of your heat pump installations?",
+    "In which areas could you (Owners) improve the standard of your heat pump installations? Other.": "54ao. In which areas could you improve the standard of your heat pump installations? Other.",
+    "In which areas could you (Employee, Contractor, Sole trader) improve the standard of your heat pump installations?": "54b. In which areas could you improve the standard of your heat pump installations?",
+    "In which areas could you (Employee, Contractor, Sole trader) improve the standard of your heat pump installations? Other.": "54bo. In which areas could you improve the standard of your heat pump installations? Other.",
+    "How often do you, or others in your business, use software apps and digital tools to support the business's activity?": "55a. How often do you, or others in your business, use software apps and digital tools to support the business's activity?",
+    "How often do you use software, apps and digital tools to support you with your work?": "55b. How often do you use software, apps and digital tools to support you with your work?",
+    "In which areas of your business do you use software, apps or digital tools?": "56a. In which areas of your business do you use software, apps or digital tools?",
+    "In which areas of your business do you use software, apps or digital tools? Other.": "56ao. In which areas of your business do you use software, apps or digital tools? Other.",
+    "In which areas of your work do you use software, apps or digital tools?": "56b. In which areas of your work do you use software, apps or digital tools?",
+    "In which areas of your work do you use software, apps or digital tools? Other.": "56bo. In which areas of your work do you use software, apps or digital tools? Other.",
+    "How would you describe existing software, apps and digital tools in terms of: Cost": "57. How would you describe existing software, apps and digital tools in terms of: Cost",
+    "How would you describe existing software, apps and digital tools in terms of: Reliability": "57. How would you describe existing software, apps and digital tools in terms of: Reliability",
+    "How would you describe existing software, apps and digital tools in terms of: Ease-of-use": "57. How would you describe existing software, apps and digital tools in terms of: Ease-of-use",
+    "How would you describe existing software, apps and digital tools in terms of: Choice": "57. How would you describe existing software, apps and digital tools in terms of: Choice",
+    "How would you describe existing software, apps and digital tools in terms of: Functionality": "57. How would you describe existing software, apps and digital tools in terms of: Functionality",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)": "58a. In which areas of your business do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)": "58a. In which areas of your business do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Training staff or apprentices": "58a. In which areas of your business do you think extra support could be most helpful: Training staff or apprentices",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Sales, customer relations, and quotes": "58a. In which areas of your business do you think extra support could be most helpful: Sales, customer relations, and quotes",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Heat pump system survey - on site": "58a. In which areas of your business do you think extra support could be most helpful: Heat pump system survey - on site",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Heat pump system design - office based": "58a. In which areas of your business do you think extra support could be most helpful: Heat pump system design - office based",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Emitter output calculations": "58a. In which areas of your business do you think extra support could be most helpful: Emitter output calculations",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels": "58a. In which areas of your business do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Planning permission process": "58a. In which areas of your business do you think extra support could be most helpful: Planning permission process",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)": "58a. In which areas of your business do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Heat pump commissioning and householder handover": "58a. In which areas of your business do you think extra support could be most helpful: Heat pump commissioning and householder handover",
+    "In which areas of your business (owners) do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork": "58a. In which areas of your business do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Heat pump servicing and maintenance": "58a. In which areas of your business do you think extra support could be most helpful: Heat pump servicing and maintenance",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Finding contractors or new staff": "58a. In which areas of your business do you think extra support could be most helpful: Finding contractors or new staff",
+    "In which areas of your business (owners) do you think extra support could be most helpful: Thermal store selection": "58a. In which areas of your business do you think extra support could be most helpful: Thermal store selection",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)": "58b. In which areas of your work do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)": "58b. In which areas of your work do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Training staff or apprentices": "58b. In which areas of your work do you think extra support could be most helpful: Training staff or apprentices",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Sales, customer relations, and quotes": "58b. In which areas of your work do you think extra support could be most helpful: Sales, customer relations, and quotes",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Heat pump system survey - on site": "58b. In which areas of your work do you think extra support could be most helpful: Heat pump system survey - on site",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Heat pump system design - office based": "58b. In which areas of your work do you think extra support could be most helpful: Heat pump system design - office based",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Emitter output calculations": "58b. In which areas of your work do you think extra support could be most helpful: Emitter output calculations",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels": "58b. In which areas of your work do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Planning permission process": "58b. In which areas of your work do you think extra support could be most helpful: Planning permission process",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)": "58b. In which areas of your work do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Heat pump commissioning and householder handover": "58b. In which areas of your work do you think extra support could be most helpful: Heat pump commissioning and householder handover",
+    "In which areas of your work (employee) do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork": "58b. In which areas of your work do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Heat pump servicing and maintenance": "58b. In which areas of your work do you think extra support could be most helpful: Heat pump servicing and maintenance",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Thermal store selection": "58b. In which areas of your work do you think extra support could be most helpful: Thermal store selection",
+    "In which areas of your work (employee) do you think extra support could be most helpful: Finding contractor job opportunities": "58b. In which areas of your work do you think extra support could be most helpful: Finding contractor job opportunities",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)": "58c. In which areas of your work do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)": "58c. In which areas of your work do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Training staff or apprentices": "58c. In which areas of your work do you think extra support could be most helpful: Training staff or apprentices",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Sales, customer relations, and quotes": "58c. In which areas of your work do you think extra support could be most helpful: Sales, customer relations, and quotes",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Heat pump system survey - on site": "58c. In which areas of your work do you think extra support could be most helpful: Heat pump system survey - on site",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Heat pump system design - office based": "58c. In which areas of your work do you think extra support could be most helpful: Heat pump system design - office based",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Emitter output calculations": "58c. In which areas of your work do you think extra support could be most helpful: Emitter output calculations",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels": "58c. In which areas of your work do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Planning permission process": "58c. In which areas of your work do you think extra support could be most helpful: Planning permission process",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)": "58c. In which areas of your work do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Heat pump commissioning and householder handover": "58c. In which areas of your work do you think extra support could be most helpful: Heat pump commissioning and householder handover",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork": "58c. In which areas of your work do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Heat pump servicing and maintenance": "58c. In which areas of your work do you think extra support could be most helpful: Heat pump servicing and maintenance",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Thermal store selection": "58c. In which areas of your work do you think extra support could be most helpful: Thermal store selection",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)": "58d. In which areas of your business do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)": "58d. In which areas of your business do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Training staff or apprentices": "58d. In which areas of your business do you think extra support could be most helpful: Training staff or apprentices",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Sales, customer relations, and quotes": "58d. In which areas of your business do you think extra support could be most helpful: Sales, customer relations, and quotes",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Heat pump system survey - on site": "58d. In which areas of your business do you think extra support could be most helpful: Heat pump system survey - on site",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Heat pump system design - office based": "58d. In which areas of your business do you think extra support could be most helpful: Heat pump system design - office based",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Emitter output calculations": "58d. In which areas of your business do you think extra support could be most helpful: Emitter output calculations",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels": "58d. In which areas of your business do you think extra support could be most helpful: Ordering and delivery of materials and supplies, and monitoring stock levels",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Planning permission process": "58d. In which areas of your business do you think extra support could be most helpful: Planning permission process",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)": "58d. In which areas of your business do you think extra support could be most helpful: Installation of heat pump system (including heat pump unit, pipes, emitters)",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Heat pump commissioning and householder handover": "58d. In which areas of your business do you think extra support could be most helpful: Heat pump commissioning and householder handover",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork": "58d. In which areas of your business do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Heat pump servicing and maintenance": "58d. In which areas of your business do you think extra support could be most helpful: Heat pump servicing and maintenance",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Finding contractors or new staff": "58d. In which areas of your business do you think extra support could be most helpful: Finding contractors or new staff",
+    "In which areas of your business (sole traders) do you think extra support could be most helpful: Thermal store selection": "58d. In which areas of your business do you think extra support could be most helpful: Thermal store selection",
+    "What do you find most challenging about the final stages of the installation and the customer handover? You can select up to 3 responses.": "59. What do you find most challenging about the final stages of the installation and the customer handover? You can select up to 3 responses.",
+    "How do you (owners and employees) manage the design for the majority of your heat pump installations?": "60a. How do you manage the design for the majority of your heat pump installations?",
+    "How do you (owners and employees) manage the design for the majority of your heat pump installations? Other": "60ao. How do you manage the design for the majority of your heat pump installations? Other",
+    "How do you (contractors) manage the design for the majority of your heat pump installations?": "60b. How do you manage the design for the majority of your heat pump installations?",
+    "How do you (contractors) manage the design for the majority of your heat pump installations? Other": "60bo. How do you manage the design for the majority of your heat pump installations? Other",
+    "Which design software or platform do you use? Select all that apply.": "70. Which design software or platform do you use? Select all that apply.",
+    "Which design software or platform do you use? Other.": "70o. Which design software or platform do you use? Other.",
+    "How do you source the following skills? Business administration": "71. How do you source the following skills? Business administration",
+    "How do you source the following skills? System design": "71. How do you source the following skills? System design",
+    "How do you source the following skills? Installation of the heat pump system \(including heat pump unit, pipes, emitters\)": "71. How do you source the following skills? Installation of the heat pump system (including heat pump unit, pipes, emitters)",
+    "How do you source the following skills? Commissioning": "71. How do you source the following skills? Commissioning",
+    "How do you source the following skills? MCS and post install documentation": "71. How do you source the following skills? MCS and post install documentation",
+    "How do you source the following skills? Service and maintenance on site": "71. How do you source the following skills? Service and maintenance on site",
+    "How do you source the following skills? Customer support off site": "71. How do you source the following skills? Customer support off site",
+    "If you were to increase the number of heat pumps you install, what single skill could you add to your business to help you do this?Please select one option.": "72. If you were to increase the number of heat pumps you install, what single skill could you add to your business to help you do this? Please select one option.",
+    "If you were to increase the number of heat pumps you install, what single skill could you add to your business to help you do this? Other.": "72o. If you were to increase the number of heat pumps you install, what single skill could you add to your business to help you do this? Other.",
+    "For the role you selected above, what experience level would you most like to recruit?": "73. For the role you selected above, what experience level would you most like to recruit?",
+    "How likely are you to directly employ new staff in the next 12 months?": "74. How likely are you to directly employ new staff in the next 12 months?",
+    "How likely are you to subcontract new staff in the next 12 months?": "75. How likely are you to subcontract new staff in the next 12 months?",
+    "How likely are you to increase the workload of family members already working with you or encourage new family members to join the business in the next 12 months?": "76. How likely are you to increase the workload of family members already working with you or encourage new family members to join the business in the next 12 months?",
+    "If you were looking for new staff, which of the following would you prefer?Please select one option.": "77. If you were looking for new staff, which of the following would you prefer? Please select one option.",
+    "Other (please specify):If you were looking for new staff, which of the following would you prefer?Please select one option.": "77o.If you were looking for new staff, which of the following would you prefer? Other.",
+    "If you were looking for new staff, what are the biggest barriers to taking on new directly employed staff?": "78. If you were looking for new staff, what are the biggest barriers to taking on new directly employed staff?",
+    "If you were looking for new staff, what are the biggest barriers to subcontracting staff?": "79. If you were looking for new staff, what are the biggest barriers to subcontracting staff?",
+    "Do you currently employ an apprentice who works on heat pump installations, or have you done so in the last 12 months?": "80. Do you currently employ an apprentice who works on heat pump installations, or have you done so in the last 12 months?",
+    "What challenges, if any, have you faced as part of taking on an apprentice to work with you on heat pump installations?": "81. What challenges, if any, have you faced as part of taking on an apprentice to work with you on heat pump installations?",
+    "What challenges, if any, have you faced as part of taking on an apprentice to work with you on heat pump installations? Other.": "81o. What challenges, if any, have you faced as part of taking on an apprentice to work with you on heat pump installations? Other.",
+    "What are the challenges you foresee with taking on an apprentice to work with you on heat pump installations?": "82. What are the challenges you foresee with taking on an apprentice to work with you on heat pump installations?",
+    "What are the challenges you foresee with taking on an apprentice to work with you on heat pump installations? Other.": "82o. What are the challenges you foresee with taking on an apprentice to work with you on heat pump installations? Other.",
+    "How confident are you that a recent graduate from an apprenticeship scheme would be trained to an appropriate level to work for you?": "83. How confident are you that a recent graduate from an apprenticeship scheme would be trained to an appropriate level to work for you?",
+    "If you were recruiting, what skills would you prioritise in a recent graduate from an apprenticeship scheme to work with you on heat pump installations?": "84. If you were recruiting, what skills would you prioritise in a recent graduate from an apprenticeship scheme to work with you on heat pump installations?",
+    "If you were recruiting, what skills would you prioritise in a recent graduate from an apprenticeship scheme to work with you on heat pump installations? Other.": "84o. If you were recruiting, what skills would you prioritise in a recent graduate from an apprenticeship scheme to work with you on heat pump installations? Other.",
+    "What do you think could be most improved from the training that plumbing and heating apprentices receive?Please select one option.": "85. What do you think could be most improved from the training that plumbing and heating apprentices receive? Please select one option.",
+    "What do you think could be most improved from the training that plumbing and heating apprentices receive? Other.": "85o. What do you think could be most improved from the training that plumbing and heating apprentices receive? Other.",
+    "If you were recruiting, how likely would you be to take on candidates with paper qualifications but no practical or vocational experience in the field?": "86. If you were recruiting, how likely would you be to take on candidates with paper qualifications but no practical or vocational experience in the field?",
+    "Why might you choose to take on someone with vocational experience over paper qualifications?Please select one option.": "87. Why might you choose to take on someone with vocational experience over paper qualifications? Please select one option.",
+    "Why might you choose to take on someone with vocational experience over paper qualifications? Other.": "87o. Why might you choose to take on someone with vocational experience over paper qualifications? Other.",
+    "Why might you choose to take on someone with only paper qualifications?Please select one option.": "88. Why might you choose to take on someone with only paper qualifications? Please select one option.",
+    "Why might you choose to take on someone with only paper qualifications? Other.": "88o. Why might you choose to take on someone with only paper qualifications? Other.",
+    "What might further encourage you most to take on someone with only paper qualifications?Please select one option.": "89a. What might further encourage you most to take on someone with only paper qualifications? Please select one option.",
+    "What might further encourage you most to take on someone with only paper qualifications? Other.": "89ao. What might further encourage you most to take on someone with only paper qualifications? Other.",
+    "What might encourage you most to take on someone with only paper qualifications?Please select one option.": "89b. What might encourage you most to take on someone with only paper qualifications? Please select one option.",
+    "What might encourage you most to take on someone with only paper qualifications? Other.": "89bo. What might encourage you most to take on someone with only paper qualifications? Other.",
+    "What proportion of heat pump enquiries result in generating a comprehensive quote for works?": "90. What proportion of heat pump enquiries result in generating a comprehensive quote for works?",
+    "What proportion of comprehensive quotes for works result in installations?": "91. What proportion of comprehensive quotes for works result in installations?",
+    "What do you think the main reason is that customers don’t go ahead with a heat pump installation after you provide a quote?Please select one option.": "92. What do you think the main reason is that customers don't go ahead with a heat pump installation after you provide a quote? Please select one option.",
+    "What do you think the main reason is that customers don’t go ahead with a heat pump installation after you provide a quote? Other.": "92o. What do you think the main reason is that customers don't go ahead with a heat pump installation after you provide a quote? Other.",
+    "How frequently do you have to decline viable heat pump installation work because you don’t have the capacity to do it?": "93. How frequently do you have to decline viable heat pump installation work because you don't have the capacity to do it?",
+    "Have you ever declined work for any of the following reasons, even when the customer is keen and you're able to do it?": "94. Have you ever declined work for any of the following reasons, even when the customer is keen and you're able to do it?",
+    "Have you ever declined work for any of the following reasons, even when the customer is keen and you're able to do it? Other.": "94o. Have you ever declined work for any of the following reasons, even when the customer is keen and you're able to do it? Other.",
+    "Do you ever feel your customer service is of a lower quality than you would like?": "95. Do you ever feel your customer service is of a lower quality than you would like?",
+    "In which areas could you improve your standards to help you provide a better service to your customers?": "96. In which areas could you improve your standards to help you provide a better service to your customers?",
+    "In which areas could you improve your standards to help you provide a better service to your customers? Other.": "96o. In which areas could you improve your standards to help you provide a better service to your customers? Other.",
+    "What training or certification do you have? Select all that apply.": "97. What training or certification do you have? Select all that apply.",
+    "What training or certification do you have? Other.": "97o. What training or certification do you have? Other.",
+    "With the skills you’ve gained from the formal training you’ve done so far, how prepared do you feel for your current heat pump installation work?": "98. With the skills you've gained from the formal training you've done so far, how prepared do you feel for your current heat pump installation work?",
+    "If there are areas in which your formal training has not been sufficient, how have you addressed these gaps? Select all that apply.": "99. If there are areas in which your formal training has not been sufficient, how have you addressed these gaps? Select all that apply.",
+    "If there are areas in which your formal training has not been sufficient, how have you addressed these gaps? Other.": "99o. If there are areas in which your formal training has not been sufficient, how have you addressed these gaps? Other.",
+    "In which of these areas would you most like to improve your skills?Please select one option.": "100. In which of these areas would you most like to improve your skills? Please select one option.",
+    "In which of these areas would you most like to improve your skills? Other.": "100o. In which of these areas would you most like to improve your skills? Other.",
+    "Are you interested in completing training on new technologies (e.g. heat batteries)?": "101. Are you interested in completing training on new technologies (e.g. heat batteries)?",
+    "What is your preferred way of doing training?": "102. What is your preferred way of doing training?",
+    "What is your preferred way of doing training? Other.": "102o. What is your preferred way of doing training? Other.",
+    "How do you learn about updates to policy that affects your work, for instance changes to MCS standards or updates to relevant regulations or legislation? Select all that apply.": "103. How do you learn about updates to policy that affects your work, for instance changes to MCS standards or updates to relevant regulations or legislation? Select all that apply.",
+    "How do you learn about updates to policy that affects your work, for instance changes to MCS standards or updates to relevant regulations or legislation? Other.": "103o. How do you learn about updates to policy that affects your work, for instance changes to MCS standards or updates to relevant regulations or legislation? Other.",
+    "Where do you think training should be most improved in order to best support the next generation?Please select one option.": "104. Where do you think training should be most improved in order to best support the next generation? Please select one option.",
+    "Where do you think training should be most improved in order to best support the next generation? Other.": "104o. Where do you think training should be most improved in order to best support the next generation? Other.",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? MCS": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? MCS",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Manufacturers": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Manufacturers",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? UK government": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? UK government",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Energy companies": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Energy companies",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Certification bodies": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Certification bodies",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Training providers": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Training providers",
+    "Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Trade associations such as HPF, GSHPA, HPA": "105. Do you feel able to communicate your ideas, concerns and feedback with the bodies that influence your work? Trade associations such as HPF, GSHPA, HPA",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? MCS": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? MCS",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Manufacturers": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Manufacturers",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? UK government": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? UK government",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Energy companies": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Energy companies",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Certification bodies": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Certification bodies",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Training providers": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Training providers",
+    "To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Trade associations such as HPF, GSHPA, HPA": "106. To what extent could the following organisations act on your opinions on how your job and the industry could be improved? Trade associations such as HPF, GSHPA, HPA",
+    "Which bodies are you a member of?Select all that apply.": "107. Which bodies are you a member of? Select all that apply.",
+    "Which bodies are you a member of? Other.": "107. Which bodies are you a member of? Other.",
+    "To what extent does your membership(s) meet your needs for formal industry representation?": "108. To what extent does your membership(s) meet your needs for formal industry representation?",
+    "To what extent does your membership(s) meet your needs for the sharing of technical knowledge, industry information, and experiences from your work?": "109. To what extent does your membership(s) meet your needs for the sharing of technical knowledge, industry information, and experiences from your work?",
+    "Which certification bodies for MCS do you use? Select all that apply.": "Which certification bodies for MCS do you use? Select all that apply.",
+    "To what extent do you want to feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?": "110. To what extent do you want to feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?",
+    "To what extent do you currently feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?": "111. To what extent do you currently feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?",
+    "How do you share knowledge and experiences with other heat pump installers? Select all that apply.": "112. How do you share knowledge and experiences with other heat pump installers? Select all that apply.",
+    "How do you share knowledge and experiences with other heat pump installers? Other.": "112o. How do you share knowledge and experiences with other heat pump installers? Other.",
+    "How do you think manufacturers can better support heat pump installers? You can select up to three options.": "113. How do you think manufacturers can better support heat pump installers? You can select up to three options.",
+    "How do you think manufacturers can better support heat pump installers? Other.": "113o. How do you think manufacturers can better support heat pump installers? Other.",
+    "Have you experienced and/or have you been diagnosed with a mental health condition?": "114. Have you experienced and/or have you been diagnosed with a mental health condition?",
+    'To what extent do you agree with this statement? "My work in the heat pump sector negatively affects my mental health."': '115. To what extent do you agree with this statement? "My work in the heat pump sector negatively affects my mental health."',
+}
+
+
+# %%
+# Rename columns
+data = data.rename(columns=column_dict)
+
+# %%
+# Reorder columns
+data = data.loc[:, column_dict.values()]
+
+# %% [markdown]
+# # Save Cleaned Data as Parquet File
+
+# %%
+clean_data_path = f"""/mnt/g/Shared drives/A Sustainable Future/1. Reducing household emissions/\
+2. Projects Research Work/36. Installer survey/05 survey data/{datetime.now().strftime("%Y%m%d")}_Installer_survey_clean_data_anonymised.parquet"""
+
+# %%
+data.to_parquet(clean_data_path)

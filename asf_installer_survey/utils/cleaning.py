@@ -220,7 +220,6 @@ def merge_two_questions(
     merge_column_1: str,
     merge_column_2: str,
     merge_column_name: str,
-    remove_merge_columns: bool = False,
 ) -> DataFrame:
     def _merge(row):
         """Get's non-nan (float) value. Returns error if both non-nan."""
@@ -235,12 +234,4 @@ def merge_two_questions(
 
     df[merge_column_name] = df[[merge_column_1, merge_column_2]].apply(_merge, axis=1)
 
-    if remove_merge_columns:
-        columns = [merge_column_1, merge_column_2]
-        # Remove response and optional other column in case they are included
-        try:
-            columns.remove(merge_column_name)
-        except ValueError:
-            pass
-        df = df.drop(columns=columns)
     return df
