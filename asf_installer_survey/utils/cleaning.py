@@ -82,6 +82,23 @@ def collapse_select_all(
     other_text: str = "Other (please specify)",
     other_replace: str = "Other",
 ):
+    """Collapse a series of 'select all' columns into a single column of lists.
+
+    Args:
+      df: Dataframe of interest.
+      select_all_columns: String allowing selction of all participating columns.
+      collapsed_column_name: Name for new column of lists.
+      remove_collapsed_columns: Flag to remove participating columns if required.
+      responses: List possible responses, used to identify 'Other' responses.
+      recode_other: Clean 'Other' responses if present.
+      save_other_as_new_column: Flag to save free-text other responses to new column.
+      new_other_column_name: Name for new column of free-text 'Other' responses.
+      other_text: String identifying 'Other' in data.
+      other_replace: Replacement for other_text value in collapsed_column_name
+
+    Returns:
+      Dataframe with collapsed list column and optionally other column.
+    """
     # Collapse fields to list of items.
     df[collapsed_column_name] = df[
         df.columns[df.columns.str.contains(select_all_columns)]
@@ -155,7 +172,17 @@ def collapse_select_all(
     return df
 
 
-def _insert_into_string(source_str, insert_str, pos):
+def _insert_into_string(source_str: str, insert_str: str, pos: int) -> str:
+    """Insert string into other string at given position.
+
+    Args:
+      source_str: String to insert into.
+      insert_str: String to insert.
+      pos: Index n source_str at which to insert insert_str.
+
+    Returns:
+      New string.
+    """
     return source_str[:pos] + insert_str + source_str[pos:]
 
 
@@ -166,6 +193,21 @@ def set_not_asked_responses(
     exclusion_cols: Sequence,
     not_asked_value: Union[str, int, Sequence],
 ) -> DataFrame:
+    """Insert 'not asked' response according to filter.
+
+    This uses the disjunctive normal form (DNF) as used in the pyarrow library.
+    For more details, see 'filters' at: https://arrow.apache.org/docs/python/generated/pyarrow.parquet.ParquetDataset.html
+
+    Args:
+      df: Dataframe of interest.
+      column: Column of interest.
+      filters: Filters expressed in the Disjunctive Normal Form (DNF)
+      exclusion_cols: list of columns involved in setting 'not asked'.
+      not_asked_value: Token representing not asked response.
+
+    Returns:
+      Dataframe with 'not asked' set on required column.
+    """
     # Convert filters to expression
     expression = "lambda df: " + str(filters_to_expression(filters))
     # add in pandas components
@@ -221,6 +263,20 @@ def merge_two_questions(
     merge_column_2: str,
     merge_column_name: str,
 ) -> DataFrame:
+    """Merges two columns.
+
+    This addresses an edge case where two columns need to be merged.
+
+    Args:
+      df: Dataframe of interest.
+      merge_column_1: First column to merge.
+      merge_column_2: Second column to merge.
+      merge_column_name: Name of new merged column.
+
+    Returns:
+      Dataframe with newly merged column.
+    """
+
     def _merge(row):
         """Get's non-nan (float) value. Returns error if both non-nan."""
         if row[0] and isinstance(row[1], float):

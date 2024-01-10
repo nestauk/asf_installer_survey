@@ -1297,7 +1297,7 @@ data["Is your business MCS certified for heat pump installations?"] = (
 #
 # Although there are 3 responses in the survey data, the 'both' response is empty.
 #
-# Describe: text; na: 477 (147 not asked).
+# Describe: text; 624 na (566 not asked).
 # Cleaning: Collapse select all that apply data.
 #
 # Exclusion criteria- Responded no or not yet to 'Is your business MCS certified for heat pump installations?'.
@@ -1323,6 +1323,7 @@ mcs_yes = {
         ],
         [(exclusion_col, "==", "No, we have never been MCS certified")],
         [(exclusion_col, "==", "Not yet, but we're in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward 'not asked' exclusion
     ],
     "columns": [exclusion_col],
 }
@@ -1346,7 +1347,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### How long has your business been MCS certified for heat pump installations?
 #
-# Describe: text; na: 477 (147 not asked).
+# Describe: text; na: 624 (566 not asked).
 # Cleaning: Convert to categorical variable. Replace unicode apostrope in don't know.
 #
 # Exclusion criteria - Responded no or not yet to 'Is your business MCS certified for heat pump installations?'
@@ -1381,7 +1382,7 @@ data["How long has your business been MCS certified for heat pump installations?
 #
 # Note, this exact question is asked to a different branch, so we'll have to disambiguate here.
 #
-# Describe: text; na: 477 (147 not asked).
+# Describe: text; na: 624 (566 not asked).
 # Cleaning: Convert to categorical variable. Replace unicode apostrope in don't know Drop old column..
 #
 # Exclusion criteria - Responded no or not yet to 'Is your business MCS certified for heat pump installations?'
@@ -1423,7 +1424,7 @@ data = data.drop(
 # %% [markdown]
 # ### Why isn’t your business MCS certified? Select all that apply.
 #
-# Describe: text; na: 477 (201 not asked).
+# Describe: text; na: 678 (620 not asked).
 # Cleaning: Collapse multiple options.
 #
 # NB other column created, but no other text observed.
@@ -1451,6 +1452,7 @@ mcs_no_never = {
         ],
         [(exclusion_col, "==", "Yes")],
         [(exclusion_col, "==", "Not yet, but we're in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1485,7 +1487,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### Which heat pump technologies was your business MCS certified to install? Select all that apply.
 #
-# Describe: text; na: 477 (280 not asked).
+# Describe: text; na: 757 (699 not asked).
 # Cleaning: Collapse multiple options.
 #
 # Exclusion criteria - Responded yes, no, never or not yet to 'Is your business MCS certified for heat pump installations?'
@@ -1498,6 +1500,7 @@ mcs_no_previously = {
         [(exclusion_col, "==", "No, we have never been MCS certified")],
         [(exclusion_col, "==", "Yes")],
         [(exclusion_col, "==", "Not yet, but we're in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1521,7 +1524,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### How long was your business MCS certified for heat pump installations?
 #
-# Describe: text; na: 477 (280 not asked).
+# Describe: text; na: 757 (699 not asked).
 # Cleaning: Cast to categorical variables.
 #
 # Exclusion criteria - Responded yes, no, never or not yet to 'Is your business MCS certified for heat pump installations?'
@@ -1554,7 +1557,7 @@ data["How long was your business MCS certified for heat pump installations?"] = 
 # %% [markdown]
 # ### Do you intend to reinstate your MCS certification with a new Nominated Technical Person?
 #
-# Describe: text; na: 477 (290 not asked).
+# Describe: text; na: 767 (709 not asked).
 # Cleaning: Cast to categorical variables.
 #
 # Exclusion criteria - Responded yes, no never, no previously ceased, or not yet to 'Is your business MCS certified for heat pump installations?'
@@ -1574,6 +1577,7 @@ mcs_no_ceased = {
         [(exclusion_col, "==", "No, we have never been MCS certified")],
         [(exclusion_col, "==", "Yes")],
         [(exclusion_col, "==", "Not yet, but we're in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # Carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1633,7 +1637,7 @@ data["Are you personally registered as an MCS-certified heat pump installer?"] =
 #
 # Although there are 3 responses in the survey data, the 'both' response is empty.
 #
-# Describe: text; na: 755 (119 not asked).
+# Describe: text; na: 755 (696 not asked).
 # Cleaning: Collapse select all that apply data.
 #
 # Exclusion criteria- Responded no or not yet to 'Are you personally registered as an MCS-certified heat pump installer?'.
@@ -1652,6 +1656,7 @@ mcs_yes = {
         ],
         [(exclusion_col, "==", "No, I have never been MCS certified")],
         [(exclusion_col, "==", "Not yet, but I'm in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1675,7 +1680,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### How long have you been MCS certified for heat pump installations?
 #
-# Describe: text; na: 755 (119 not asked).
+# Describe: text; na: 755 (696 not asked).
 # Cleaning: Convert to categorical variable.
 #
 # Exclusion criteria - Responded no or not yet to 'Are you personally registered as an MCS-certified heat pump installer?'
@@ -1708,7 +1713,7 @@ data["How long have you been MCS certified for heat pump installations?"] = (
 # %% [markdown]
 # ### How long did the certification process take from application to certification?
 #
-# Describe: text; na: 755 (119 not asked).
+# Describe: text; na: 755 (696 not asked).
 # Cleaning: Convert to categorical variable.
 #
 # Exclusion criteria - Responded no or not yet to 'Are you personally registered as an MCS-certified heat pump installer?'
@@ -1764,6 +1769,7 @@ mcs_no_never = {
         ],
         [(exclusion_col, "==", "Yes")],
         [(exclusion_col, "==", "Not yet, but I'm in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1795,7 +1801,7 @@ data = collapse_select_all(
     [not_asked],
 )
 
-# Set Contractor fields to null (empty list)
+# Set Contractor fields to not asked (empty list)
 exclusion_col = """Are you responding to this survey as…If multiple answers apply to you, \
 select the option in which you’ve done the most heat pump installations in the last year."""
 # Main variable
@@ -1805,7 +1811,7 @@ data.loc[
 ] = data.loc[
     lambda df: df[exclusion_col] == "A contractor or freelancer", "Response ID"
 ].apply(
-    lambda _: []
+    lambda _: [not_asked]
 )
 
 # Other variables
@@ -1815,7 +1821,7 @@ data.loc[
 ] = data.loc[
     lambda df: df[exclusion_col] == "A contractor or freelancer", "Response ID"
 ].apply(
-    lambda _: None
+    lambda _: not_asked
 )
 
 # %% [markdown]
@@ -1838,6 +1844,7 @@ mcs_no_never = {
         ],
         [(exclusion_col, "==", "Yes")],
         [(exclusion_col, "==", "Not yet, but I'm in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1876,7 +1883,7 @@ data.loc[
     lambda df: df[exclusion_col] == "I’m a sole trader",
     "Why aren't you (Contractor) MCS certified? Select all that apply.",
 ] = data.loc[lambda df: df[exclusion_col] == "I’m a sole trader", "Response ID"].apply(
-    lambda _: []
+    lambda _: [not_asked]
 )
 
 # Other variables
@@ -1884,7 +1891,7 @@ data.loc[
     lambda df: df[exclusion_col] == "I’m a sole trader",
     "Why aren't you (Contractor) MCS certified? Other.",
 ] = data.loc[lambda df: df[exclusion_col] == "I’m a sole trader", "Response ID"].apply(
-    lambda _: None
+    lambda _: not_asked
 )
 
 # %% [markdown]
@@ -1892,7 +1899,7 @@ data.loc[
 #
 # Although there are 3 responses in the survey data, the 'both' response is empty.
 #
-# Describe: text; na: 760 (123 not asked).
+# Describe: text; na: 760 (700 not asked).
 # Cleaning: Collapse select all that apply data.
 #
 # Exclusion criteria- Responded no, but previously to 'Are you personally registered as an MCS-certified heat pump installer?'.
@@ -1905,6 +1912,7 @@ mcs_no_previously = {
         [(exclusion_col, "==", "No, I have never been MCS certified")],
         [(exclusion_col, "==", "Yes")],
         [(exclusion_col, "==", "Not yet, but I'm in the process of certification")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -1928,7 +1936,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### How long were you MCS certified for heat pump installations?
 #
-# Describe: text; na: 760 (123 not asked).
+# Describe: text; na: 760 (700 not asked).
 # Cleaning: Cast to categorical variable.
 #
 # Exclusion criteria- Responded no, but previously to 'Are you personally registered as an MCS-certified heat pump installer?'.
@@ -1994,7 +2002,7 @@ data["Is the firm you work for MCS certified for heat pump installations?"] = (
 # %% [markdown]
 # ### Which heat pump technologies is the firm you work for you MCS certified to install?
 #
-# Describe: text; na: 583 (48 not asked).
+# Describe: text; na: 631 (574 not asked).
 # Cleaning: Collapse categorical.
 #
 # NB 'both' field is empty and not used.
@@ -2023,6 +2031,7 @@ mcs_yes = {
                 "No, it was previously MCS certified but the Nominated Technical Person has left the firm",
             )
         ],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -2046,7 +2055,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### Which heat pump technologies was the firm you work for you MCS certified to install?
 #
-# Describe: text; na: 583 (177 not asked).
+# Describe: text; na: 760 (703 not asked).
 # Cleaning: Collapse categorical.
 #
 # NB 'both' field is empty and not used.
@@ -2062,6 +2071,7 @@ mcs_no_previously = {
         [(exclusion_col, "==", "No, it has never been MCS certified")],
         [(exclusion_col, "==", "Not yet, but it is in the process of certification")],
         [(exclusion_col, "==", "Yes")],
+        [(exclusion_col, "==", "Not asked")],  # cary forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -2082,6 +2092,7 @@ data = collapse_select_all(
     [not_asked],
 )
 
+
 # %% [markdown]
 # ### Why do you prefer to remain without MCS certification? Select all that apply.
 #
@@ -2090,6 +2101,40 @@ data = collapse_select_all(
 # Cleaning: Collapse select all variables.
 #
 # Exclusion: owners responding to 'is your business mcs-certified for heat pump installations' as yes, no never or not yet, contractors and soletraders responding to 'are you personally registered as an MCS-certified for heat pump installations' as yes, no never or not yet.
+#
+# NB We can't easily carry forward not asked responses from exclusion cols 1 and 2 as they overlap so we need a temporary variable to manage not asked repsonses)
+
+
+# %%
+# Temporary variable to manage joint exclusion criteria
+def joint_exclusion(row):
+    if (
+        row["Are you personally registered as an MCS-certified heat pump installer?"]
+        == "Not asked"
+    ) & (
+        row["Is your business MCS certified for heat pump installations?"]
+        not in [
+            "No, we were previously MCS certified but decided to cease to be so",
+            "No, we were previously MCS certified but the Nominated Technical Person has left the firm",
+        ]
+    ):
+        return "Not asked"
+    elif (
+        row["Are you personally registered as an MCS-certified heat pump installer?"]
+        != "I was previously MCS certified but decided to cease to be so"
+    ) & (
+        row["Is your business MCS certified for heat pump installations?"]
+        == "Not asked"
+    ):
+        return "Not asked"
+
+
+data["temp_joint_exclusion"] = data[
+    [
+        "Are you personally registered as an MCS-certified heat pump installer?",
+        "Is your business MCS certified for heat pump installations?",
+    ]
+].apply(joint_exclusion, axis=1)
 
 # %%
 # Bespoke exclusion filter for mcs certification
@@ -2097,6 +2142,8 @@ exclusion_col_1 = "Is your business MCS certified for heat pump installations?"
 exclusion_col_2 = (
     "Are you personally registered as an MCS-certified heat pump installer?"
 )
+exclusion_col_3 = "temp_joint_exclusion"
+
 mcs_no_previously_collected = {
     "filters": [
         [(exclusion_col_1, "==", "Yes")],
@@ -2105,8 +2152,9 @@ mcs_no_previously_collected = {
         [(exclusion_col_2, "==", "Yes")],
         [(exclusion_col_2, "==", "Not yet, but I'm in the process of certification")],
         [(exclusion_col_2, "==", "No, I have never been MCS certified")],
+        [(exclusion_col_3, "==", "Not asked")],
     ],
-    "columns": [exclusion_col_1, exclusion_col_2],
+    "columns": [exclusion_col_1, exclusion_col_2, exclusion_col_3],
 }
 
 # %%
@@ -2135,6 +2183,10 @@ data = collapse_select_all(
     mcs_no_previously_collected["columns"],
     [not_asked],
 )
+
+# %%
+# Remove temporary exclusion question
+data = data.drop(columns="temp_joint_exclusion")
 
 # %% [markdown]
 # # Page 4: The work you do pt. 3
@@ -2915,7 +2967,7 @@ data[
 # %% [markdown]
 # ### What’s the biggest reason you have for wanting to reduce the number of heat pumps you install?Please select one option.
 #
-# Describe: 761 null (222 not asked).
+# Describe: 761 null (648 not asked).
 # Cleaning: Cast to categorical.
 #
 # Exclusion: Only those who answered 'far fewer' or fewer to "Would you like your business to install more heat pumps each year?I'd like to install:"
@@ -2929,6 +2981,7 @@ fewer_installs = {
         [(exclusion_col_1, "==", "The same amount of heat pumps")],
         [(exclusion_col_1, "==", "More heat pumps")],
         [(exclusion_col_1, "==", "Far more heat pumps")],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -2980,7 +3033,7 @@ data = data.drop(
 # %% [markdown]
 # ### What’s the biggest barrier to you installing more heat pumps?Please select one option.
 #
-# Describe: 563 null (24 not asked)
+# Describe: 563 null (450 not asked)
 # Cleaning: cast to categorical
 #
 # Exclusion: Only those who answered more or far more to "Would you like your business to install more heat pumps each year?I'd like to install:"
@@ -2994,6 +3047,7 @@ more_installs = {
         [(exclusion_col_1, "==", "The same amount of heat pumps")],
         [(exclusion_col_1, "==", "Fewer heat pumps")],
         [(exclusion_col_1, "==", "Far fewer heat pumps")],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -3154,7 +3208,7 @@ data["Would you like to install more heat pumps each year?I'd like to install:"]
 # %% [markdown]
 # ### What’s the biggest barrier to you installing more heat pumps?Please select one option.
 #
-# Describe: 726 null (32 not asked)
+# Describe: 726 null (387 not asked)
 # Cleaning: cast to categorical.
 #
 # Exclusion: Answered more or far more to 'Would you like to install more heat pumps each year?I'd like to install:'
@@ -3170,6 +3224,7 @@ more_installs = {
         [(exclusion_col_1, "==", "The same amount of heat pumps")],
         [(exclusion_col_1, "==", "Fewer heat pumps")],
         [(exclusion_col_1, "==", "Far fewer heat pumps")],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -3218,7 +3273,7 @@ data = data.drop(
 # %% [markdown]
 # ### What’s the biggest reason you have for wanting to reduce the number of heat pumps you install?
 #
-# Describe: 726 null (230 not asked)
+# Describe: 763 null (585 not asked)
 # Cleaning: cast to categorical.
 #
 # Exclusion: Answered fewer or far fewer to 'Would you like to install more heat pumps each year?I'd like to install:'
@@ -3234,6 +3289,7 @@ fewer_installs = {
         [(exclusion_col_1, "==", "The same amount of heat pumps")],
         [(exclusion_col_1, "==", "More heat pumps")],
         [(exclusion_col_1, "==", "Far more heat pumps")],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -3362,7 +3418,7 @@ data["Do you offer repairs, servicing and maintenance to heat pump customers?"] 
 # %% [markdown]
 # ### My business offers heat pump repairs, servicing and maintenance:
 #
-# Describe: 612 null (419 not asked)
+# Describe: 612 null (489 not asked)
 # Cleaning: cast to categorical.
 #
 # Exclusion: Answered yes to 'Do you offer repairs, servicing and maintenance to heat pump customers?' AND is a business owner (excluding sole traders)
@@ -3383,6 +3439,7 @@ yes_maintain = {
                 "No, and I do not intend to start offering this service in the next 12 months",
             )
         ],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -3417,7 +3474,7 @@ data["My business offers heat pump repairs, servicing and maintenance:"] = (
 # %% [markdown]
 # ### I offer heat pump repairs, servicing and maintenance:
 #
-# Describe: 714 null (577 not asked)
+# Describe: 714 null (624 not asked)
 # Cleaning: cast to categorical
 #
 # Exclusion: Answered yes to 'Do you offer repairs, servicing and maintenance to heat pump customers?' AND is a contractor or soletrader.
@@ -3449,6 +3506,7 @@ data["I offer heat pump repairs, servicing and maintenance:"] = (
     )
 )
 
+
 # %% [markdown]
 # ### Why do you only offer repairs, servicing and maintenance only for heat pump systems you have installed?You can select up to 2 reasons.
 #
@@ -3456,10 +3514,36 @@ data["I offer heat pump repairs, servicing and maintenance:"] = (
 #
 # Exclusion: Answered 'Only for heat pump systems that I have installed' to 'I offer heat pump repairs, servicing and maintenance:' OR 'Only for heat pump systems that my company has installed' to 'My business offers heat pump repairs, servicing and maintenance:'.
 
+
+# %%
+def joint_exclusion(row):
+    if (
+        row["My business offers heat pump repairs, servicing and maintenance:"]
+        == "Not asked"
+    ) & (
+        row["I offer heat pump repairs, servicing and maintenance:"]
+        != "Only for heat pump systems that I have installed"
+    ):
+        return "Not asked"
+    elif (
+        row["My business offers heat pump repairs, servicing and maintenance:"]
+        != "Only for heat pump systems that my company has installed"
+    ) & (row["I offer heat pump repairs, servicing and maintenance:"] == "Not asked"):
+        return "Not asked"
+
+
+data["temp_joint_exclusion"] = data[
+    [
+        "My business offers heat pump repairs, servicing and maintenance:",
+        "I offer heat pump repairs, servicing and maintenance:",
+    ]
+].apply(joint_exclusion, axis=1)
+
 # %%
 # Bespoke exclusion filter for heat pump installs
 exclusion_col_1 = "My business offers heat pump repairs, servicing and maintenance:"
 exclusion_col_2 = "I offer heat pump repairs, servicing and maintenance:"
+exclusion_col_3 = "temp_joint_exclusion"
 
 repair_my_systems = {
     "filters": [
@@ -3477,8 +3561,15 @@ repair_my_systems = {
                 "For all heat pump systems, regardless of who originally installed it",
             )
         ],
+        [
+            (
+                exclusion_col_3,
+                "==",
+                "Not asked",
+            )
+        ],
     ],
-    "columns": [exclusion_col_1, exclusion_col_2],
+    "columns": [exclusion_col_1, exclusion_col_2, exclusion_col_3],
 }
 
 # %%
@@ -3505,6 +3596,10 @@ data = collapse_select_all(
     repair_my_systems["columns"],
     [not_asked],
 )
+
+# %%
+# remove temp variable
+data = data.drop(columns="temp_joint_exclusion")
 
 # %% [markdown]
 # ### Have you found any challenges working in heat pump repairs, servicing and maintenance?You can select up to 2 reasons.
@@ -3541,7 +3636,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### Do you expect to expand your work in heat pump repairs, servicing and maintenance?
 #
-# Describe: 558 null (117 not asked)
+# Describe: 558 null (352 not asked)
 # Cleaning: cast to categorical.
 #
 # Exclusion: Answered yes to 'Do you offer repairs, servicing and maintenance to heat pump customers?'
@@ -3567,18 +3662,46 @@ data[
     )
 )
 
+
 # %% [markdown]
 # ### When doing repairs, servicing or maintenance to installations by other installers, how often do you identify bad installation practice that negatively affects heat pump performance?
 #
-# Describe: 609 null (51 not asked)
+# Describe: 609 null (602 not asked)
 # Cleaning: cast to categorical.
 #
 # Exclusion:  Must have answered "for all heat pump systems" for I/My business offer heat pump repairs, servicing and maintenance.
+
+
+# %%
+# Temporary variable to manage joint exclusion criteria
+def joint_exclusion(row):
+    if (
+        row["My business offers heat pump repairs, servicing and maintenance:"]
+        == "Not asked"
+    ) & (
+        row["I offer heat pump repairs, servicing and maintenance:"]
+        != "For all heat pump systems, regardless of who originally installed it"
+    ):
+        return "Not asked"
+    elif (
+        row["My business offers heat pump repairs, servicing and maintenance:"]
+        != "For all heat pump systems, regardless of who originally installed it"
+    ) & (row["I offer heat pump repairs, servicing and maintenance:"] == "Not asked"):
+        return "Not asked"
+
+
+data["temp_joint_exclusion"] = data[
+    [
+        "My business offers heat pump repairs, servicing and maintenance:",
+        "I offer heat pump repairs, servicing and maintenance:",
+    ]
+].apply(joint_exclusion, axis=1)
 
 # %%
 # Bespoke exclusion filter for heat pump installs
 exclusion_col_1 = "My business offers heat pump repairs, servicing and maintenance:"
 exclusion_col_2 = "I offer heat pump repairs, servicing and maintenance:"
+exclusion_col_3 = "temp_joint_exclusion"
 
 all_systems = {
     "filters": [
@@ -3590,8 +3713,9 @@ all_systems = {
             )
         ],
         [(exclusion_col_2, "==", "Only for heat pump systems that I have installed")],
+        [(exclusion_col_3, "==", "Not asked")],
     ],
-    "columns": [exclusion_col_1, exclusion_col_2],
+    "columns": [exclusion_col_1, exclusion_col_2, exclusion_col_3],
 }
 
 # %%
@@ -3622,6 +3746,10 @@ how often do you identify bad installation practice that negatively affects heat
     ordered=True,
 )
 
+# %%
+# Remove temporary column
+data = data.drop(columns="temp_joint_exclusion")
+
 # %% [markdown]
 # ### I intend to offer heat pump repairs, servicing and maintenance:
 #
@@ -3646,6 +3774,7 @@ intend_maintain = {
                 "No, and I do not intend to start offering this service in the next 12 months",
             )
         ],
+        [(exclusion_col_1, "==", "Not asked")],
     ],
     "columns": [exclusion_col_1],
 }
@@ -3724,6 +3853,7 @@ data = data.drop(
     columns="I intend to offer heat pump repairs, servicing and maintenance:.1"
 )
 
+
 # %% [markdown]
 # ### Why do you intend to offer repairs, servicing and maintenance only for heat pump systems you have installed?You can select up to 2 reasons.
 #
@@ -3731,12 +3861,46 @@ data = data.drop(
 #
 # Exclusion: Answered 'Only for heat pumps I/my company have/has installed' to 'I intend to offer heat pump repairs, servicing and maintenance'.
 
+
+# %%
+# Temporary variable to manage joint exclusion criteria
+def joint_exclusion(row):
+    if (
+        row["I intend to offer heat pump repairs, servicing and maintenance: (Owners)"]
+        == "Not asked"
+    ) & (
+        row[
+            "I intend to offer heat pump repairs, servicing and maintenance: (Contractor/Soletrader)"
+        ]
+        != "Only for heat pump systems that I have installed"
+    ):
+        return "Not asked"
+    elif (
+        row["I intend to offer heat pump repairs, servicing and maintenance: (Owners)"]
+        != "Only for heat pump systems that my company has installed"
+    ) & (
+        row[
+            "I intend to offer heat pump repairs, servicing and maintenance: (Contractor/Soletrader)"
+        ]
+        == "Not asked"
+    ):
+        return "Not asked"
+
+
+data["temp_joint_exclusion"] = data[
+    [
+        "I intend to offer heat pump repairs, servicing and maintenance: (Owners)",
+        "I intend to offer heat pump repairs, servicing and maintenance: (Contractor/Soletrader)",
+    ]
+].apply(joint_exclusion, axis=1)
+
 # %%
 # Bespoke exclusion filter for intended heat pump installs
 exclusion_col_1 = (
     "I intend to offer heat pump repairs, servicing and maintenance: (Owners)"
 )
 exclusion_col_2 = "I intend to offer heat pump repairs, servicing and maintenance: (Contractor/Soletrader)"
+exclusion_col_3 = "temp_joint_exclusion"
 
 intend_repair_my_systems = {
     "filters": [
@@ -3754,8 +3918,15 @@ intend_repair_my_systems = {
                 "For all heat pump systems, regardless of who originally installed it",
             )
         ],
+        [
+            (
+                exclusion_col_3,
+                "==",
+                "Not asked",
+            )
+        ],
     ],
-    "columns": [exclusion_col_1, exclusion_col_2],
+    "columns": [exclusion_col_1, exclusion_col_2, exclusion_col_3],
 }
 
 # %%
@@ -3783,6 +3954,10 @@ data = collapse_select_all(
     intend_repair_my_systems["columns"],
     [not_asked],
 )
+
+# %%
+# Remove temp variable
+data = data.drop(columns="temp_joint_exclusion")
 
 # %% [markdown]
 # ### Why have you previously not offered repairs, servicing and maintenance?
@@ -3856,7 +4031,7 @@ data = collapse_select_all(
 #
 # Cleaning: collapse categories.
 #
-# Exclusion: Responded 'no, and I do not intend...' to 'Do you offer reapirs, servicing and maintenance to heat pump customers' and owners, soletrader or contractor.
+# Exclusion: Responded 'no, and I do not intend...' to 'Do you offer repairs, servicing and maintenance to heat pump customers' and owners, soletrader or contractor.
 
 # %%
 # Bespoke exclusion filter for heat pump installs
@@ -3868,6 +4043,7 @@ no_maintain = {
         [(exclusion_col_1, "==", "Don't know")],
         [(exclusion_col_1, "==", "Yes")],
         [(exclusion_col_1, "==", "No, but I intend to offer it in the next 12 months")],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -3937,7 +4113,7 @@ data[
 # %% [markdown]
 # ### The business I work for offers heat pump repairs, servicing and maintenance:
 #
-# Describe: 649 null (29 not asked)
+# Describe: 649 null (555 not asked)
 # Cleaning: Cast to categorical
 #
 # Exclusion: Responded 'yes' to 'Does the business you work for offer repairs, servicing and maintenance to heat pump customers?'
@@ -3960,6 +4136,13 @@ yes_maintain = {
                 exclusion_col_1,
                 "==",
                 "No, and we do not intend to start offering this service in the next 12 months",
+            )
+        ],
+        [
+            (
+                exclusion_col_1,
+                "==",
+                "Not asked",  # carry forward not asked
             )
         ],
     ],
@@ -4009,6 +4192,13 @@ repair_my_systems = {
                 "For all heat pump systems, regardless of who originally installed it",
             )
         ],
+        [
+            (
+                exclusion_col_1,
+                "==",
+                "Not asked",  # carry forward not asked
+            )
+        ],
     ],
     "columns": [exclusion_col_1],
 }
@@ -4041,7 +4231,7 @@ data = collapse_select_all(
 # %% [markdown]
 # ### The business I work for intends to offer heat pump repairs, servicing and maintenance:
 #
-# Describe: 759 null (137 not asked)
+# Describe: 756 null (663 not asked)
 # Cleaning: Cast to categorical.
 #
 # Exclusion: Responded 'no, but we intend to...' to 'Does the business you work for offer repairs, servicing and maintenance to heat pump customers?'
@@ -4060,6 +4250,7 @@ intend_maintain = {
                 "No, and we do not intend to start offering this service in the next 12 months",
             )
         ],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -4094,9 +4285,7 @@ data[
 
 # %%
 # Bespoke exclusion filter for heat pump installs
-exclusion_col_1 = (
-    "The business I work for offers heat pump repairs, servicing and maintenance:"
-)
+exclusion_col_1 = "The business I work for intends to offer heat pump repairs, servicing and maintenance:"
 
 intend_repair_my_systems = {
     "filters": [
@@ -4105,6 +4294,13 @@ intend_repair_my_systems = {
                 exclusion_col_1,
                 "==",
                 "For all heat pump systems, regardless of who originally installed it",
+            )
+        ],
+        [
+            (
+                exclusion_col_1,
+                "==",
+                "Not asked",
             )
         ],
     ],
@@ -4157,6 +4353,7 @@ no_maintain = {
                 "No, but we intend to offer it in the next 12 months",
             )
         ],
+        [(exclusion_col_1, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col_1],
 }
@@ -4974,6 +5171,8 @@ data = collapse_select_all(
 # Cleaning: This is a checkbox matrix. We want to collapse categories row-wise.
 #
 # Exclusion: Owners and soletraders only.
+#
+# The survey item has a conditional for the 'family' response, however because we're not capturing the boxes that people don't check there's no useful way of capturing when people were eligible but didn't check the box. If relevant, we'll capture or adjust in the analysis.
 
 # %%
 rows = [
@@ -5057,7 +5256,7 @@ data = data.rename(
 # %% [markdown]
 # ### For the role you selected above, what experience level would you most like to recruit?
 #
-# Describe: 554 null (12 not asked)
+# Describe: 554 null (335 not asked)
 # Cleaning: Cast to categorical.
 #
 # Exclusion: Must have answered other than "Don't know" to previous question: 'If you were to increase the number of heat pumps you install, what single skill could you add to your business to help you do this?''
@@ -5069,6 +5268,7 @@ exclusion_col = "If you were to increase the number of heat pumps you install, w
 dont_know = {
     "filters": [
         [(exclusion_col, "==", "Don't know")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -5167,10 +5367,16 @@ data["How likely are you to subcontract new staff in the next 12 months?"] = (
 # %% [markdown]
 # ### How likely are you to increase the workload of family members already working with you or encourage new family members to join the business in the next 12 months?
 #
-# Describe: 659 null (323 not asked)
+# Describe: 659 null (453 not asked)
 # Cleaning: Cast to categorical.
 #
-# Exclusion: Owners including soletraders. Ignoring exclusion criteria on "Do you work with family members in any of the following ways? Select all that apply." as it is ill defined (some respondents who have stated 'I don't work with family' appear to be included here.)
+# Exclusion: Owners including soletraders. Additionally, respondents must have indicated that they work with family members via "Do you work with family members in any of the following ways? Select all that apply." Qualifying responses are any of: Employ family directly;
+# Own the business in partnership
+# Operate a limited compa; y
+# Receive informal, ad hoc, h; lp
+# Subcontract family mem.
+#
+# Notably, 21 responses include "I don't work with family members" and at least 1 other response that suggests they do. Of these, 10 then gave a response to this question (+ 11 missing responses). These are included as they will have been asked the question, however a small amount of missing data is introduced.bers
 
 # %%
 data[
@@ -5199,6 +5405,95 @@ data[
         ],
         ordered=True,
     )
+)
+
+# %%
+# Add family-based exclusion information
+data.loc[
+    lambda df: ~(
+        df[
+            "Do you work with family members in any of the following ways? Select all that apply."
+        ].apply(
+            lambda x: True
+            if (
+                ("Employ family directly" in x)
+                | ("Own the business in partnership" in x)
+                | ("Operate a limited company" in x)
+                | ("Receive informal, ad hoc, help" in x)
+                | ("Subcontract family members" in x)
+                | (len(x) == 0)
+            )
+            else False
+        )
+    ),
+    "How likely are you to increase the workload of family members already working with you or encourage new family members to join the business in the next 12 months?",
+] = data.loc[
+    lambda df: ~(
+        df[
+            "Do you work with family members in any of the following ways? Select all that apply."
+        ].apply(
+            lambda x: True
+            if (
+                ("Employ family directly" in x)
+                | ("Own the business in partnership" in x)
+                | ("Operate a limited company" in x)
+                | ("Receive informal, ad hoc, help" in x)
+                | ("Subcontract family members" in x)
+                | (len(x) == 0)
+            )
+            else False
+        )
+    ),
+    "Response ID",
+].apply(
+    lambda _: not_asked
+)
+
+# %% [markdown]
+# ### If you were looking for new staff, which of the following would you prefer?Please select one option.
+#
+# Describe: 542 null (323 not asked) Cleaning: Cast to categorical.
+#
+# Exclusion: Owners including soletraders.
+
+# %%
+data[
+    "If you were looking for new staff, which of the following would you prefer?Please select one option."
+] = (
+    set_not_asked_responses(
+        data,
+        "If you were looking for new staff, which of the following would you prefer?Please select one option.",
+        owners_only["filters"],
+        owners_only["columns"],
+        not_asked,
+    )[
+        "If you were looking for new staff, which of the following would you prefer?Please select one option."
+    ]
+    .replace(
+        "I wouldn’t want to increase my staff capacity",
+        "I wouldn't want to increase my staff capacity",
+    )
+    .replace("Other (please specify)", "Other")
+    .pipe(
+        pandas.Categorical,
+        categories=[
+            "Not asked",
+            "Recruit new permanent staff",
+            "Recruit new temporary staff (1-12 month contract)",
+            "Subcontract a contractor for specific projects",
+            "Recruit immediate family members",
+            "Other",
+            "I wouldn't want to increase my staff capacity",
+        ],
+        ordered=False,
+    )
+)
+
+# Rename other category
+data = data.rename(
+    columns={
+        "Other (please specify):If you were looking for new staff, which of the following would you prefer?Please select one option.": "If you were looking for new staff, which of the following would you prefer? Other."
+    }
 )
 
 # %% [markdown]
@@ -5298,6 +5593,7 @@ yes_apprentice = {
                 "No, and I do not intend to do so in the next 12 months",
             )
         ],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -5347,6 +5643,7 @@ exclusion_col = "Do you currently employ an apprentice who works on heat pump in
 no_apprentice = {
     "filters": [
         [(exclusion_col, "==", "Yes")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -5636,7 +5933,7 @@ data = data.rename(
 # %% [markdown]
 # ### What might further encourage you most to take on someone with only paper qualifications?Please select one option.
 #
-# Describe: 753 null (123 not asked)
+# Describe: 753 null (446 not asked)
 # Cleaning: Cast to categorical.
 #
 # Exclusion: Must have answered likely or very likely to 'If you were recruiting, how likely would you be to take on candidates with paper qualifications but no practical or vocational experience in the field?'
@@ -5651,6 +5948,7 @@ likely_paper_quals = {
         [(exclusion_col, "==", "Neutral")],
         [(exclusion_col, "==", "Unlikely")],
         [(exclusion_col, "==", "Very Unlikely")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -5694,7 +5992,7 @@ data = data.rename(
 # %% [markdown]
 # ### What might encourage you most to take on someone with only paper qualifications?Please select one option.
 #
-# Describe: 571 null (21 not asked)
+# Describe: 571 null (344 not asked)
 # Cleaning: Cast to categorical.
 #
 # Exclusion: Must have answered neutral or unlikely very unlikely to 'If you were recruiting, how likely would you be to take on candidates with paper qualifications but no practical or vocational experience in the field?'
@@ -5708,6 +6006,7 @@ unlikely_paper_quals = {
         [(exclusion_col, "==", "Don't know")],
         [(exclusion_col, "==", "Likely")],
         [(exclusion_col, "==", "Very likely")],
+        [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
 }
@@ -6430,7 +6729,8 @@ data[
 #
 # Cleaning: Collapse categories.
 #
-# Exclusion: Complex exclusion based on MCS questions in 'work you do' and retrofit work. Unclear how this was operationalised so ignroed here.
+# Exclusion: Complex exclusion based on MCS questions in 'work you do' and retrofit work. inclusion based on:
+# 'Is your business MCS certified for heat pump installations?' responds 'Yes' OR 'Are you personally registered as an MCS-certified heat pump installer?' responds 'Yes' OR 'In your (Employee) retrofit work, do you install heat pumps through: Select all that apply.' includes the response "My own MCS certification (I am the firm's Nominated Technical Person)"
 
 # %%
 data = collapse_select_all(
@@ -6438,6 +6738,72 @@ data = collapse_select_all(
     select_all_columns="Which certification bodies for MCS do you use?",
     collapsed_column_name="Which certification bodies for MCS do you use? Select all that apply.",
     remove_collapsed_columns=True,
+)
+
+# %%
+# Add not asked logic to question
+data.loc[
+    ~(
+        (data["Is your business MCS certified for heat pump installations?"] == "Yes")
+        | data["Is your business MCS certified for heat pump installations?"].isna()
+        | (
+            data[
+                "Are you personally registered as an MCS-certified heat pump installer?"
+            ]
+            == "Yes"
+        )
+        | data[
+            "Are you personally registered as an MCS-certified heat pump installer?"
+        ].isna()
+        | (
+            data[
+                "In your (Employee) retrofit work, do you install heat pumps through: Select all that apply."
+            ].apply(
+                lambda x: True
+                if (
+                    (
+                        "My own MCS certification (I am the firm's Nominated Technical Person)"
+                        in x
+                    )
+                    | (len(x) == 0)
+                )
+                else False
+            )
+        )
+    ),
+    "Which certification bodies for MCS do you use? Select all that apply.",
+] = data.loc[
+    ~(
+        (data["Is your business MCS certified for heat pump installations?"] == "Yes")
+        | data["Is your business MCS certified for heat pump installations?"].isna()
+        | (
+            data[
+                "Are you personally registered as an MCS-certified heat pump installer?"
+            ]
+            == "Yes"
+        )
+        | data[
+            "Are you personally registered as an MCS-certified heat pump installer?"
+        ].isna()
+        | (
+            data[
+                "In your (Employee) retrofit work, do you install heat pumps through: Select all that apply."
+            ].apply(
+                lambda x: True
+                if (
+                    (
+                        "My own MCS certification (I am the firm's Nominated Technical Person)"
+                        in x
+                    )
+                    | (len(x) == 0)
+                )
+                else False
+            )
+        )
+    ),
+    "Response ID",
+].apply(
+    lambda _: [not_asked]
 )
 
 # %% [markdown]
@@ -6863,7 +7229,7 @@ column_dict = {
     "How likely are you to subcontract new staff in the next 12 months?": "75. How likely are you to subcontract new staff in the next 12 months?",
     "How likely are you to increase the workload of family members already working with you or encourage new family members to join the business in the next 12 months?": "76. How likely are you to increase the workload of family members already working with you or encourage new family members to join the business in the next 12 months?",
     "If you were looking for new staff, which of the following would you prefer?Please select one option.": "77. If you were looking for new staff, which of the following would you prefer? Please select one option.",
-    "Other (please specify):If you were looking for new staff, which of the following would you prefer?Please select one option.": "77o.If you were looking for new staff, which of the following would you prefer? Other.",
+    "If you were looking for new staff, which of the following would you prefer? Other.": "77o.If you were looking for new staff, which of the following would you prefer? Other.",
     "If you were looking for new staff, what are the biggest barriers to taking on new directly employed staff?": "78. If you were looking for new staff, what are the biggest barriers to taking on new directly employed staff?",
     "If you were looking for new staff, what are the biggest barriers to subcontracting staff?": "79. If you were looking for new staff, what are the biggest barriers to subcontracting staff?",
     "Do you currently employ an apprentice who works on heat pump installations, or have you done so in the last 12 months?": "80. Do you currently employ an apprentice who works on heat pump installations, or have you done so in the last 12 months?",
@@ -6927,7 +7293,7 @@ column_dict = {
     "Which bodies are you a member of? Other.": "107. Which bodies are you a member of? Other.",
     "To what extent does your membership(s) meet your needs for formal industry representation?": "108. To what extent does your membership(s) meet your needs for formal industry representation?",
     "To what extent does your membership(s) meet your needs for the sharing of technical knowledge, industry information, and experiences from your work?": "109. To what extent does your membership(s) meet your needs for the sharing of technical knowledge, industry information, and experiences from your work?",
-    "Which certification bodies for MCS do you use? Select all that apply.": "Which certification bodies for MCS do you use? Select all that apply.",
+    "Which certification bodies for MCS do you use? Select all that apply.": "109z. Which certification bodies for MCS do you use? Select all that apply.",
     "To what extent do you want to feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?": "110. To what extent do you want to feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?",
     "To what extent do you currently feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?": "111. To what extent do you currently feel part of an informal network of heat pump professionals, with whom you share technical knowledge, industry information, and experiences from your work?",
     "How do you share knowledge and experiences with other heat pump installers? Select all that apply.": "112. How do you share knowledge and experiences with other heat pump installers? Select all that apply.",
