@@ -390,6 +390,23 @@ data["What size company do you own?"] = set_not_asked_responses(
 # Cleaning: The data are collapsed rowwise into lists. An empty list corresponds to NA, and a list containing "Not asked" representing the not asked response (question asked to owners only, question not asked to 'An employee of a firm', 'A contractor or freelancer'). The redundant columns are removed.
 
 # %%
+# In this filter small owners only
+exclusion_col_1 = """Are you responding to this survey as…If multiple answers apply to you, \
+select the option in which you’ve done the most heat pump installations in the last year."""
+exclusion_col_2 = "What size company do you own?"
+
+small_owners_only = {
+    "filters": [
+        [(exclusion_col_1, "==", "An employee of a firm")],
+        [(exclusion_col_1, "==", "A contractor or freelancer")],
+        [(exclusion_col_2, "==", "I own a company with 6-25 employees")],
+        [(exclusion_col_2, "==", "I own a company with 26-100 employees")],
+        [(exclusion_col_2, "==", "I own a company with over 100 employees")],
+    ],
+    "columns": [exclusion_col_1, exclusion_col_2],
+}
+
+# %%
 data = collapse_select_all(
     df=data,
     select_all_columns="Do you work with family members in any of the following ways?",
@@ -398,8 +415,8 @@ data = collapse_select_all(
 ).pipe(
     set_not_asked_responses,
     "Do you work with family members in any of the following ways? Select all that apply.",
-    owners_only["filters"],
-    owners_only["columns"],
+    small_owners_only["filters"],
+    small_owners_only["columns"],
     [not_asked],
 )
 
@@ -4907,9 +4924,10 @@ data = data.drop(columns=columns)
 # Exclusion: Only employees.
 
 # %%
+# NB regex has to additionally exclude the contractor job ops response which is not asked to employees
 columns = data.columns[
     data.columns.str.contains(
-        "In which areas of your work do you think extra support could be most helpful\?$"
+        "(?<!Finding contractor job opportunities:)In which areas of your work do you think extra support could be most helpful\?$"
     )
 ]
 
@@ -7178,7 +7196,6 @@ column_dict = {
     "In which areas of your work (employee) do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork": "58b. In which areas of your work do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork",
     "In which areas of your work (employee) do you think extra support could be most helpful: Heat pump servicing and maintenance": "58b. In which areas of your work do you think extra support could be most helpful: Heat pump servicing and maintenance",
     "In which areas of your work (employee) do you think extra support could be most helpful: Thermal store selection": "58b. In which areas of your work do you think extra support could be most helpful: Thermal store selection",
-    "In which areas of your work (employee) do you think extra support could be most helpful: Finding contractor job opportunities": "58b. In which areas of your work do you think extra support could be most helpful: Finding contractor job opportunities",
     "In which areas of your work (contractor) do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)": "58c. In which areas of your work do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)",
     "In which areas of your work (contractor) do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)": "58c. In which areas of your work do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)",
     "In which areas of your work (contractor) do you think extra support could be most helpful: Training staff or apprentices": "58c. In which areas of your work do you think extra support could be most helpful: Training staff or apprentices",
@@ -7192,6 +7209,7 @@ column_dict = {
     "In which areas of your work (contractor) do you think extra support could be most helpful: Heat pump commissioning and householder handover": "58c. In which areas of your work do you think extra support could be most helpful: Heat pump commissioning and householder handover",
     "In which areas of your work (contractor) do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork": "58c. In which areas of your work do you think extra support could be most helpful: MCS, BUS DNO and other post-installation paperwork",
     "In which areas of your work (contractor) do you think extra support could be most helpful: Heat pump servicing and maintenance": "58c. In which areas of your work do you think extra support could be most helpful: Heat pump servicing and maintenance",
+    "In which areas of your work (contractor) do you think extra support could be most helpful: Finding contractor job opportunities": "58c. In which areas of your work do you think extra support could be most helpful: Finding contractor job opportunities",
     "In which areas of your work (contractor) do you think extra support could be most helpful: Thermal store selection": "58c. In which areas of your work do you think extra support could be most helpful: Thermal store selection",
     "In which areas of your business (sole traders) do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)": "58d. In which areas of your business do you think extra support could be most helpful: Business management (eg. recruitment, planning future of business and strategy)",
     "In which areas of your business (sole traders) do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)": "58d. In which areas of your business do you think extra support could be most helpful: Business administration (eg. finances, paperwork, reporting)",
