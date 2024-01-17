@@ -3228,7 +3228,10 @@ data["Would you like to install more heat pumps each year?I'd like to install:"]
 # Describe: 726 null (387 not asked)
 # Cleaning: cast to categorical.
 #
-# Exclusion: Answered more or far more to 'Would you like to install more heat pumps each year?I'd like to install:'
+# Exclusion: Answered more or far more to 'Would you like to install more heat pumps each year?I'd like to install:' and soletraders only.
+
+# %%
+set_not_asked_responses
 
 # %%
 # Bespoke exclusion filter for heat pump installs
@@ -3255,6 +3258,13 @@ data[
         more_installs["filters"],
         more_installs["columns"],
         not_asked,
+    )
+    .pipe(
+        set_not_asked_responses,
+        column="What’s the biggest barrier to you installing more heat pumps?Please select one option..1",
+        filters=soletraders_only["filters"],
+        exclusion_cols=soletraders_only["columns"],
+        not_asked_value=not_asked,
     )[
         "What’s the biggest barrier to you installing more heat pumps?Please select one option..1"
     ]
