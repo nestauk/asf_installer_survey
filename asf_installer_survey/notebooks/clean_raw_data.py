@@ -3231,9 +3231,6 @@ data["Would you like to install more heat pumps each year?I'd like to install:"]
 # Exclusion: Answered more or far more to 'Would you like to install more heat pumps each year?I'd like to install:' and soletraders only.
 
 # %%
-set_not_asked_responses
-
-# %%
 # Bespoke exclusion filter for heat pump installs
 exclusion_col_1 = (
     "Would you like to install more heat pumps each year?I'd like to install:"
@@ -3330,6 +3327,13 @@ data[
         fewer_installs["filters"],
         fewer_installs["columns"],
         not_asked,
+    )
+    .pipe(
+        set_not_asked_responses,
+        column="What’s the biggest reason you have for wanting to reduce the number of heat pumps you install?Please select one option..1",
+        filters=soletraders_only["filters"],
+        exclusion_cols=soletraders_only["columns"],
+        not_asked_value=not_asked,
     )[
         "What’s the biggest reason you have for wanting to reduce the number of heat pumps you install?Please select one option..1"
     ]
