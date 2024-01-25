@@ -7346,6 +7346,42 @@ data = data.rename(columns=column_dict)
 data = data.loc[:, column_dict.values()]
 
 # %% [markdown]
+# ### Add Analytical Sample Column
+
+# %%
+# Setup analytical sample column with
+exclusion_column = "4. How long have you been working with heat pumps?"
+exclusion_values = [
+    "I don’t work with heat pumps and have no plans to do so",
+    "I don’t work with heat pumps, but plan to do so in the twelve months",
+    "Don't know",
+    None,
+]
+
+# Insert exclusion filter into dataframe
+data.insert(4, "0e. Analytical Sample", ~data[exclusion_column].isin(exclusion_values))
+
+# %%
+# Now define analytical sample from completions and partials.
+last_question = "113. How do you think manufacturers can better support heat pump installers? You can select up to three options."
+
+
+def define_analytical_sample(row):
+    if row["0d. Status"] == "Complete":
+        return True
+    elif (row["0d. Status"] == "Partial") & (len(row[last_question]) > 0):
+        return True
+    else:
+        return False
+
+
+# Update analytical sample
+data["0e. Analytical Sample"] = (
+    data.apply(lambda row: define_analytical_sample(row), axis=1)
+    & data["0e. Analytical Sample"]
+)
+
+# %% [markdown]
 # # Save Cleaned Data as Parquet File
 
 # %%
