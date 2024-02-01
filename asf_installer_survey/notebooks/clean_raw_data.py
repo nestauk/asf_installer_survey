@@ -33,7 +33,33 @@ raw_data_path = """/mnt/g/Shared drives/A Sustainable Future/1. Reducing househo
 2. Projects Research Work/36. Installer survey/05 survey data/Installer survey raw data anonymised (CSV).csv"""
 
 # %%
-data = pandas.read_csv(raw_data_path)
+# Need to avoid the legitimate response 'None' being iterpretted as NA.
+# na_values are the pandas defaults without "None"
+data = pandas.read_csv(
+    raw_data_path,
+    keep_default_na=False,
+    na_values=[
+        " ",
+        "",
+        "#N/A",
+        "#N/A N/A",
+        "#NA",
+        "-1.#IND",
+        "-1.#QNAN",
+        "-NaN",
+        "-nan",
+        "1.#IND",
+        "1.#QNAN",
+        "<NA>",
+        "N/A",
+        "NA",
+        "NULL",
+        "NaN",
+        "n/a",
+        "nan",
+        "null",
+    ],
+)
 
 # %% [markdown]
 # ### Filters for Exclusion Criteria
@@ -4863,7 +4889,11 @@ for col in columns:
         f"In which areas of your business (owners) do you think extra support could be most helpful: {task}"
     ] = (
         set_not_asked_responses(
-            data, col, owners_only["filters"], owners_only["columns"], not_asked
+            data,
+            col,
+            owners_no_soletraders["filters"],
+            owners_no_soletraders["columns"],
+            not_asked,
         )[col]
         .replace("Don’t know", "Don't know")
         .replace("Don’t need support", "Don't need support")
@@ -5979,7 +6009,7 @@ likely_paper_quals = {
         [(exclusion_col, "==", "Don't know")],
         [(exclusion_col, "==", "Neutral")],
         [(exclusion_col, "==", "Unlikely")],
-        [(exclusion_col, "==", "Very Unlikely")],
+        [(exclusion_col, "==", "Very unlikely")],
         [(exclusion_col, "==", "Not asked")],  # carry forward not asked
     ],
     "columns": [exclusion_col],
@@ -6699,7 +6729,7 @@ data = collapse_select_all(
 # Describe: 447 null.
 # Cleaning: cast to categorical.
 #
-# Exclusion: All asked.
+# Exclusion: Not asked if response to Q107 was "I'm not a member of any industry bodies"
 
 # %%
 data[
@@ -6721,16 +6751,27 @@ data[
             "A moderate amount",
             "A large amount",
             "A very large amount",
+            not_asked,
         ],
     )
 )
+
+# Set exclusion
+data.loc[
+    (
+        data["Which bodies are you a member of?Select all that apply."].apply(
+            lambda x: True if "I'm not a member of any industry bodies" in x else False
+        )
+    ),
+    "To what extent does your membership(s) meet your needs for formal industry representation?",
+] = not_asked
 
 # %% [markdown]
 # ### To what extent does your membership(s) meet your needs for the sharing of technical knowledge, industry information, and experiences from your work?
 #
 # Describe: 447 null.
 #
-# Exclusion: All asked.
+# Exclusion: Not asked if response to Q107 was "I'm not a member of any industry bodies"
 
 # %%
 data[
@@ -6752,9 +6793,20 @@ data[
             "A moderate amount",
             "A large amount",
             "A very large amount",
+            not_asked,
         ],
     )
 )
+
+# Set exclusion
+data.loc[
+    (
+        data["Which bodies are you a member of?Select all that apply."].apply(
+            lambda x: True if "I'm not a member of any industry bodies" in x else False
+        )
+    ),
+    "To what extent does your membership(s) meet your needs for the sharing of technical knowledge, industry information, and experiences from your work?",
+] = not_asked
 
 # %% [markdown]
 # ### Which certification bodies for MCS do you use?
@@ -7367,9 +7419,7 @@ last_question = "113. How do you think manufacturers can better support heat pum
 
 
 def define_analytical_sample(row):
-    if row["0d. Status"] == "Complete":
-        return True
-    elif (row["0d. Status"] == "Partial") & (len(row[last_question]) > 0):
+    if len(row[last_question]) > 0:
         return True
     else:
         return False
@@ -7380,6 +7430,11 @@ data["0e. Analytical Sample"] = (
     data.apply(lambda row: define_analytical_sample(row), axis=1)
     & data["0e. Analytical Sample"]
 )
+
+# Respondant with ID 299 has random missing throughout - remove.
+data.loc[
+    lambda df: df["0a. Response ID"].isin([299, 801]), "0e. Analytical Sample"
+] = False
 
 # %% [markdown]
 # # Save Cleaned Data as Parquet File
