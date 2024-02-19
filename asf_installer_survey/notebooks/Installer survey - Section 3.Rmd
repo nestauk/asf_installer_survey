@@ -1,0 +1,1825 @@
+---
+title: "Installer survey - Section 3"
+author: "Benoit Siberdt"
+date: "2024-02-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Heat pump installer survey analysis
+
+## Section 3 - The work installers do (Part II)
+
+### Foreword
+
+As for Section 1, throughout the analysis, we collapsed responses and respondents to the survey into various subcategories to get the most relevant information. This collapsing was done based on the guidelines laid out in the [analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit){target="_blank"}.
+
+You can find the pre-analysis code to run before analysing section 3 of the installer survey below.
+
+```{r}
+##### Load packages
+library(arrow)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(wesanderson)
+library(khroma)
+
+##### Load dataset
+file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
+Installer_survey_data <- arrow::read_parquet(file_path)
+
+# Duplicate dataset to be sure not to mess it up
+data_full <- Installer_survey_data
+
+# Link to the Miro board
+# https://miro.com/app/board/uXjVNWK_xBg=/
+
+# Link to the analysis plan
+# https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.voghu12g248q
+
+##### Filter out partial responses
+data <- data_full %>%
+  filter(`0e. Analytical Sample` == "TRUE")  
+
+##### Change names of variables to make things easier
+data <- clean_names(data)
+
+
+##### Pre-analysis - Collapsed options and new variables
+
+## Create employment_type variables
+data <- data %>%
+  mutate(employment_type = case_when(x5_are_you_responding_to_this_survey_as == "An employee of a firm" ~ "Employee", 
+                                     x5_are_you_responding_to_this_survey_as == "A contractor or freelancer" ~ "Contractor or freelancer",
+                                     x6a_what_size_company_do_you_own == "I’m a sole trader" ~ "Sole trader",
+                                     x6a_what_size_company_do_you_own == "I own a company with 5 or fewer employees" ~ "Company owner", 
+                                     x6a_what_size_company_do_you_own == "I own a company with 6-25 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with 26-100 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with over 100 employees" ~ "Company owner", TRUE ~ "Not asked"))
+data$employment_type <- as.factor(data$employment_type)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_soletrader_owner_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor or freelancer",
+                                                             employment_type == "Employee" ~ "Employee",
+                                                             employment_type == "Sole trader" ~ "Sole trader or company owner",
+                                                             employment_type == "Company owner" ~ "Sole trader or company owner"))
+data$employment_type_soletrader_owner_merged <- as.factor(data$employment_type_soletrader_owner_merged)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_employee_contractor_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Employee" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Sole trader" ~ "Sole trader",
+                                                                employment_type == "Company owner" ~ "Company owner"))
+data$employment_type_employee_contractor_merged <- as.factor(data$employment_type_employee_contractor_merged)
+
+# Create dummy variable for employment type
+data <- data %>%
+  mutate(dummy_employment_type = case_when(employment_type == "Employee" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Contractor or freelancer" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Company owner" ~ "Company owner or sole trader",
+                                           employment_type == "Sole trader" ~ "Company owner or sole trader"))
+data$dummy_employment_type <- as.factor(data$dummy_employment_type)
+
+# Create dummy for contractors and freelancers
+data <- data %>%
+  mutate(dummy_contractors = case_when(employment_type == "Contractor or freelancer" ~ 1, TRUE ~ 0))
+
+# Create dummy for employees
+data <- data %>%
+  mutate(dummy_employees = case_when(employment_type == "Employee" ~ 1, TRUE ~ 0))
+
+# Create dummy for sole traders
+data <- data %>%
+  mutate(dummy_soletraders = case_when(employment_type == "Sole traders" ~ 1, TRUE ~ 0))
+
+# Create dummy for company owner
+data <- data %>%
+  mutate(dummy_company_owner = case_when(employment_type == "Company owner" ~ 1, TRUE ~ 0))
+
+
+##### Participant age
+data <- data %>%
+  mutate(age_collapsed = recode_factor(x1_how_old_are_you,
+                                       "18-24" = "34 and under",
+                                       "25-34" = "34 and under",
+                                       "35-44" = "35-44",
+                                       "45-54" = "45-54",
+                                       "55-64" = "55 and over",
+                                       "65-74" = "55 and over",
+                                       "Over 75" = "55 and over",
+                                       "Prefer not to say" = "Prefer not to say"))
+
+
+##### Length of time in the heat pump sector
+data <- data %>%
+  mutate(length_hp_sector_collapsed = recode_factor(x4_how_long_have_you_been_working_with_heat_pumps,
+                                                    "I don’t work with heat pumps, but plan to do so in the twelve months" = "Don’t work with heat pumps",
+                                                    "I don’t work with heat pumps and have no plans to do so" = "Don’t work with heat pumps",
+                                                    "Don't know" = "Don’t work with heat pumps",
+                                                    "Less than 12 months" = "Under 3 years",
+                                                    "1-3 years" = "Under 3 years",
+                                                    "3-5 years" = "3-5 years",
+                                                    "5-10 years" = "5-10 years",
+                                                    "10-20 years" = "Over 10 years",
+                                                    "Over 20 years" = "Over 10 years"))
+
+
+##### Size of company owned
+# Version 1
+data <- data %>%
+  mutate(size_company_owned_collapsed_1 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium",
+                                                        "I own a company with 26-100 employees" = "Large",
+                                                        "I own a company with over 100 employees" = "Large",
+                                                        "Not asked" = "Not asked"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_owned_collapsed_2 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium and large",
+                                                        "I own a company with 26-100 employees" = "Medium and large",
+                                                        "I own a company with over 100 employees" = "Medium and large",
+                                                        "Not asked" = "Not asked"))
+
+
+##### Size of company employees work for
+# Version 1
+data <- data %>%
+  mutate(size_company_employee_work_1 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "5 or fewer",
+                                                      "I work for a company with 6-25 employees" = "6-25",
+                                                      "I work for a company with 26-100 employees" = "26-100",
+                                                      "I work for a company with over 100 employees" = "Over 100",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_employee_work_2 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "25 or fewer",
+                                                      "I work for a company with 6-25 employees" = "25 or fewer",
+                                                      "I work for a company with 26-100 employees" = "Over 25",
+                                                      "I work for a company with over 100 employees" = "Over 25",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+
+##### Distance travelled for work
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed = recode_factor(x10_how_far_from_your_business_location_would_you_typically_travel_for_jobs_approximately,
+                                                               "Less than 25 miles" = "Less than 25 miles",
+                                                               "25 to 50 miles" = "25-50 miles",
+                                                               "50 to 100 miles" = "50-100 miles",
+                                                               "100 to 200 miles" = "Over 100 miles",
+                                                               "200 to 300 miles" = "Over 100 miles",
+                                                               "More than 300 miles" = "Over 100 miles",
+                                                               "Don't know" = "Don't know"))
+
+## Domestic/commercial work split
+# Company
+data <- data %>%
+  mutate(dom_com_work_plit_12a = recode_factor(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of,
+                                               "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                               "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                               "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                               "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                               "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                               "Not asked" = "Not asked"))
+
+# Individual
+data <- data %>%
+  mutate(dom_com_work_plit_12b = recode_factor(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of,
+                                               "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                               "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                               "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                               "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                               "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                               "Not asked" = "Not asked"))
+
+
+## Intentions for domestic/commercial work split
+# Company
+data <- data %>%
+  mutate(intentions_dom_com_work_split_13a = recode_factor(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
+                                                           "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                                           "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                                           "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                                           "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                                           "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                                           "Not asked" = "Not asked"))
+
+# Individual
+data <- data %>%
+  mutate(intentions_dom_com_work_split_13b = recode_factor(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
+                                                           "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                                           "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                                           "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                                           "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                                           "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                                           "Not asked" = "Not asked"))
+
+
+## Ratio heating system installations that are heat pumps
+# Company
+data <- data %>%
+  mutate(ratio_heating_systems_hp_company_14a = recode_factor(x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on,
+                                                              "Only heat pumps" = "Mostly heat pumps",
+                                                              "Mostly heat pumps, and some other systems" = "Mostly heat pumps",
+                                                              "An equal number of heat pumps and other systems" = "Equal split",
+                                                              "Mostly other systems, and some heat pumps" = "Mostly non-heat pumps",
+                                                              "Almost entirely other systems and the occasional heat pump" = "Mostly non-heat pumps",
+                                                              "My company doesn't install any heat pumps, but plans to do so in the next 12 months" = "Don’t install heat pumps",
+                                                              "My company doesn't install any heat pumps, and has no plans to do so" = "Don’t install heat pumps"))
+
+# Individual
+data <- data %>%
+  mutate(ratio_heating_systems_hp_engineer_14b = recode_factor(x14b_thinking_of_the_heating_systems_you_install_do_you_work_on,
+                                                               "Only heat pumps" = "Mostly heat pumps",
+                                                               "Mostly heat pumps, and some other systems" = "Mostly heat pumps",
+                                                               "An equal number of heat pumps and other systems" = "Equal split",
+                                                               "Mostly other systems, and some heat pumps" = "Mostly non-heat pumps",
+                                                               "Almost entirely other systems, and the occasional heat pump" = "Mostly non-heat pumps",
+                                                               "I don't install any heat pumps, but I plan to do so in the next 12 months" = "Don’t install heat pumps",
+                                                               "I don't install any heat pumps and have no plans to do so" = "Don’t install heat pumps"))
+
+
+
+########### Additional pre-analysis code for this section ###########
+
+## retrofit_newbuild variable for company owners
+# Installers were asked if they have done any retrofit or new build (select all that apply)
+# Some responded only retrofit, other only new build, others both.
+# Those who replied retrofit and new build were asked q33, what is the majority of your installations.
+# To create variable retrofit_newbuild we want to include those who only responded retrofit to q30 and those who responded retrofit to q33.
+
+# Filter the "only retrofit answers"
+# To do this, I find answers which contain "retrofit" which include those who replied retrofit and retrofit, new build.
+# Then I create a new variable with condition 1 = retrofit in new variable and condition 2 = not asked (q33) since those who only replied retrofit to q30 were not asked q33.
+# This way I have a binary variable which takes the value "retrofit" for installers who replied "retrofit" only to q30.
+
+# Step 1
+data$x30a_answer1 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30a_answer2 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_retrofit_q30a = ifelse(str_detect(x30a_answer1, fixed("Retrofit")) |
+                                      str_detect(x30a_answer2, fixed("Retrofit")), 1, 0)) 
+# 149 installers replied either "retrofit" or "retrofit, newbuild" to q30a
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_owners = case_when(dummy_retrofit_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Retrofit only", TRUE ~ "Other")) # 50 installers
+
+# Do the same for New build
+data <- data %>% 
+  mutate(dummy_newbuild_q30a = ifelse(str_detect(x30a_answer1, fixed("New build")) |
+                                      str_detect(x30a_answer2, fixed("New build")), 1, 0))
+# 113 installers replied either "retrofit" or "retrofit, newbuild" to q30a
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_owners = case_when(dummy_newbuild_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Newbuild only", TRUE ~ "Other")) # 14 installers
+
+# Create retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_owners = case_when(retrofit_only_owners == "Retrofit only" |
+                                       x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Retrofit" ~ "Only/mostly retrofit",
+                                       newbuild_only_owners == "Newbuild only" | 
+                                       x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "New build" ~ "Only/mostly newbuild", TRUE ~ "Other"))
+
+
+## retrofit_newbuild variable for sole traders, employees, and contractors
+# Step 1
+data$x30b_answer1 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30b_answer2 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_retrofit_q30b = ifelse(str_detect(x30b_answer1, fixed("Retrofit")) |
+                                      str_detect(x30b_answer2, fixed("Retrofit")), 1, 0)) 
+# 169 installers replied either "retrofit" or "retrofit, newbuild" to q30b
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_others = case_when(dummy_retrofit_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Retrofit only", TRUE ~ "Other")) # 66 installers
+
+# Do the same for New build
+data <- data %>% 
+  mutate(dummy_newbuild_q30b = ifelse(str_detect(x30b_answer1, fixed("New build")) |
+                                      str_detect(x30b_answer2, fixed("New build")), 1, 0))
+# 116 installers replied either "retrofit" or "retrofit, newbuild" to q30b
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_others = case_when(dummy_newbuild_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Newbuild only", TRUE ~ "Other")) # 13 installers
+
+# Create retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_others = case_when(retrofit_only_others == "Retrofit only" |
+                                       x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Retrofit" ~ "Only/mostly retrofit",
+                                       newbuild_only_others == "Newbuild only" | 
+                                       x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "New build" ~ "Only/mostly newbuild", TRUE ~ "Other"))
+
+
+subset_test <- data %>% 
+  select(x0a_response_id, retrofit_newbuild_owners, retrofit_newbuild_others)
+
+
+## retrofit_newbuild variable for all installers
+# Turn "other" into NA
+data$retrofit_newbuild_owners_bis <- data$retrofit_newbuild_owners
+data$retrofit_newbuild_others_bis <- data$retrofit_newbuild_others
+data <- data %>%
+  mutate(retrofit_newbuild_owners_bis = recode(retrofit_newbuild_owners_bis, "Other" = NA_character_))
+data <- data %>%
+  mutate(retrofit_newbuild_others_bis = recode(retrofit_newbuild_others_bis, "Other" = NA_character_))
+
+# Merge variables
+data <- data %>% 
+  mutate(retrofit_newbuild_all = coalesce(retrofit_newbuild_owners_bis, retrofit_newbuild_others_bis))
+```
+
+#### 3.01 \| What proportion of survey participants are MCS certified?
+
+We want to know the ratio of MCS certified businesses and installers among the respondents. First, company owners (excluding sole traders) were asked if their business is certified. Table and Figure 3.1a summarise the distribution.
+
+```{r}
+# Collapse some values of q21a
+data <- data %>% 
+  mutate(x21a_collapsed = recode(x21a_is_your_business_mcs_certified_for_heat_pump_installations,
+                                 "Yes" = "Yes",
+                                 "Not yet, but we're in the process of certification" = "Not yet, but we're in the process of certification",
+                                 "No, we were previously MCS certified but decided to cease to be so" = "Previously MCS certified",
+                                 "No, we were previously MCS certified but the Nominated Technical Person has left the firm" = "Previously MCS certified",
+                                 "No, we have never been MCS certified" = "No, we have never been MCS certified")) # n=163 (because 182 "not asked")
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21a_collapsed = recode(x21a_collapsed, "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x21a_collapsed)
+kable(table, 
+      caption = "Table 3.1a. Distribtion of MCS certified businesses (company owners, excluding sole traders)", 
+      col.names = c("Status", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Figure 3.1a
+data_filtered <- data[!is.na(data$x21a_collapsed),]
+ggplot(data_filtered, aes(x = x21a_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 3.1a. Distribtion of MCS certified businesses (company owners, excluding sole traders)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Next, sole traders and contractors were asked if they were personally registered as an MCS certified heat pump installer. Table and Figure 3.1b show the distribution.
+
+```{r}
+# Duplicate variable
+data$x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis <- data$x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis = recode(x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis, "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis)
+kable(table, 
+      caption = "Table 3.1b. Distribtion of MCS certified businesses (sole traders and contractors)", 
+      col.names = c("Status", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T) # n = 70 (275 not asked)
+```
+
+```{r}
+# Figure 3.1a
+data_filtered <- data[!is.na(data$x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis),]
+ggplot(data_filtered, aes(x = x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 3.1b. Distribtion of MCS certified businesses (sole traders and contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 50, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Third, we asked employees if the businesses they work for are MCS certified. Table and Figure 3.1c show the distribution for employees.
+
+```{r}
+# Collapse some values of q21a
+data <- data %>% 
+  mutate(x21c_collapsed = recode(x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations,
+                                 "Yes" = "Yes",
+                                 "Not yet, but it is in the process of certification" = "Not yet, but it is in the process of certification",
+                                 "No, it was previously MCS certified but decided to cease to be so" = "Previously MCS certified",
+                                 "No, it was previously MCS certified but the Nominated Technical Person has left the firm" = "Previously MCS certified",
+                                 "No, it has never been MCS certified" = "No, it has never been MCS certified",
+                                 "Don't know" = "Don't know")) # n=163 (because 182 "not asked")
+
+# Change levels for clarity
+data <- data %>% 
+  mutate(x21c_collapsed = fct_relevel(x21c_collapsed, "Yes",
+                              "Not yet, but it is in the process of certification",
+                              "Previously MCS certified",
+                              "No, it has never been MCS certified",
+                              "Don't know"))
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21c_collapsed = recode(x21c_collapsed, "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x21c_collapsed)
+kable(table, 
+      caption = "Table 3.1c. Distribtion of MCS certified businesses (employees)", 
+      col.names = c("Status", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T) # n=112 (because 233 not asked)
+```
+
+```{r}
+# Figure 3.1c
+data_filtered <- data[!is.na(data$x21c_collapsed),]
+ggplot(data_filtered, aes(x = x21c_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 3.1c. Distribtion of MCS certified businesses (employees)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15),
+                   limits = c("Yes",
+                              "Not yet, but it is in the process of certification",
+                              "Previously MCS certified",
+                              "No, it has never been MCS certified",
+                              "Don't know"))
+```
+
+#### 3.02 \| Are firms of certain sizes more inclined to withdraw from MCS certification than others?
+
+We want to understand which businesses tend to withdraw from MCS certification. Therefore, we analyse the patterns above by the company size. Table and Figure 3.2a show the distribution of MCS certification by company size for company owners (excluding sole traders).
+
+```{r}
+# Remove sole traders for size_company_owned_collapsed_1
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(size_company_owned_collapsed_1_bis = recode(size_company_owned_collapsed_1, "Not asked" = NA_character_)) %>% 
+  mutate(size_company_owned_collapsed_1_bis = recode(size_company_owned_collapsed_1_bis, "Sole trader" = NA_character_))
+
+# Remove "not asked" values from x21a_is_your_business_mcs_certified_for_heat_pump_installations
+# Duplicate variable
+data$x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis <- data$x21a_is_your_business_mcs_certified_for_heat_pump_installations
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis = recode(x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+
+# Table for breakdown by company size 
+table <- xtabs(~ x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis + size_company_owned_collapsed_1_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Create the table
+kable(table_df, 
+      caption = "Table 3.2a. Distribtion of MCS certified businesses by company size (company owners, excluding sole traders)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_owned_collapsed_1_bis + x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Yes",
+                        "Not yet, but we're in the process of certification",
+                        "No, we were previously MCS certified but decided to cease to be so",
+                        "No, we were previously MCS certified but the Nominated Technical Person has left the firm", 
+                        "No, we have never been MCS certified")
+
+# Add employment_type as a column
+table_df$CompanySize <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Certification", value = "Frequency", -CompanySize)
+
+# Define the order of the x-axis labels
+order_labels <- c("Yes",
+                        "Not yet, but we're in the process of certification",
+                        "No, we were previously MCS certified but decided to cease to be so",
+                        "No, we were previously MCS certified but the Nominated Technical Person has left the firm", 
+                        "No, we have never been MCS certified")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Certification`, levels = order_labels), y = Frequency, fill = CompanySize)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 3.2a. Distribtion of MCS certified businesses by company size (company owners, excluding sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 3.2b show the distribution of MCS certification by company size for employees.
+
+```{r}
+# Remove sole traders for size_company_owned_collapsed_1
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(size_company_employee_work_1_bis = recode(size_company_employee_work_1, "Not asked" = NA_character_)) %>% 
+  mutate(size_company_employee_work_1_bis = recode(size_company_employee_work_1_bis, "Sole trader" = NA_character_))
+
+# Remove "not asked" values from x21a_is_your_business_mcs_certified_for_heat_pump_installations
+# Duplicate variable
+data$x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations_bis <- data$x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations_bis = recode(x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+
+# Table for breakdown by company size 
+table <- xtabs(~ x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations_bis + size_company_employee_work_1_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Create the table
+kable(table_df, 
+      caption = "Table 3.2b. Distribtion of MCS certified businesses by company size (employees)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_employee_work_1_bis + x21c_is_the_firm_you_work_for_mcs_certified_for_heat_pump_installations_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Don't know",
+                        "Yes",
+                        "Not yet, but we're in the process of certification",
+                        "No, we were previously MCS certified but decided to cease to be so",
+                        "No, we were previously MCS certified but the Nominated Technical Person has left the firm", 
+                        "No, we have never been MCS certified")
+
+# Add employment_type as a column
+table_df$CompanySize <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Certification", value = "Frequency", -CompanySize)
+
+# Define the order of the x-axis labels
+order_labels <- c("Yes",
+                  "Not yet, but we're in the process of certification",
+                  "No, we were previously MCS certified but decided to cease to be so",
+                  "No, we were previously MCS certified but the Nominated Technical Person has left the firm", 
+                  "No, we have never been MCS certified",
+                  "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Certification`, levels = order_labels), y = Frequency, fill = CompanySize)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 3.2b. Distribtion of MCS certified businesses by company size (employees)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 3.03 \| Are there differences in levels of MCS certification depending on whether survey participants have done mostly retrofit or new build installations in the last 12 months?
+
+We also want to know if the distribution of MCS certification shown above correlates with whether installers mostly work in retrofit or newbuild. Table and Figure 3.3a summarise the distribution for company owners (excluding sole traders).
+
+```{r}
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(retrofit_newbuild_owners_bis = recode(retrofit_newbuild_owners, "Other" = NA_character_))
+
+# Remove "not asked" values from x21a_is_your_business_mcs_certified_for_heat_pump_installations
+# Duplicate variable
+data$x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis <- data$x21a_is_your_business_mcs_certified_for_heat_pump_installations
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis = recode(x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+
+# Table for breakdown by company size 
+table <- xtabs(~ x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis + retrofit_newbuild_owners_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Create the table
+kable(table_df, 
+      caption = "Table 3.3a. Distribtion of MCS certified businesses by installation type (company owners, excluding sole traders)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ retrofit_newbuild_owners_bis + x21a_is_your_business_mcs_certified_for_heat_pump_installations_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$RetrofitNewbuild <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Certification", value = "Frequency", -RetrofitNewbuild)
+
+# Define the order of the x-axis labels
+order_labels <- c("Yes",
+                  "Not yet, but we're in the process of certification",
+                  "No, we were previously MCS certified but decided to cease to be so",
+                  "No, we were previously MCS certified but the Nominated Technical Person has left the firm", 
+                  "No, we have never been MCS certified",
+                  "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Certification`, levels = order_labels), y = Frequency, fill = RetrofitNewbuild)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 3.3a. Distribtion of MCS certified businesses by installation type (company owners, excluding sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Type of work") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_y_continuous(breaks = seq(0, 100, by = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 3.3b summarise the distribution for sole traders and contractors.
+
+```{r}
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(retrofit_newbuild_others_bis = recode(retrofit_newbuild_others, "Other" = NA_character_))
+
+# Remove "not asked" values from x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer
+# Duplicate variable
+data$x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis <- data$x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis = recode(x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis, "Not asked" = NA_character_))
+
+# Table for breakdown by company size 
+table <- xtabs(~ x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis + retrofit_newbuild_others_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Create the table
+kable(table_df, 
+      caption = "Table 3.3b. Distribtion of MCS certified businesses by installation type (sole traders and contractors)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE) # n = 70
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ retrofit_newbuild_others_bis + x21b_are_you_personally_registered_as_an_mcs_certified_heat_pump_installer_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$RetrofitNewbuild <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Certification", value = "Frequency", -RetrofitNewbuild)
+
+# Define the order of the x-axis labels
+order_labels <- c("Yes",
+                  "No, I have never been MCS certified",
+                  "Not yet, but I'm in the process of certification",
+                  "I was previously MCS certified but decided to cease to be so")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Certification`, levels = order_labels), y = Frequency, fill = RetrofitNewbuild)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 3.3b. Distribtion of MCS certified businesses by installation type (sole traders and contractors)",
+       x = "",
+       y = "Frequency",
+       fill = "Type of work") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_y_continuous(breaks = seq(0, 50, by = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 3.04 \| Of those who are MCS certified, what types of heat pump are they certified to install?
+
+For the installers who are MCS certified, we want to know which technologies. Only installers who answered that they are MCS certified were asked that question: 93 company owners, 8 sole traders or contractors, and 96 employees.
+
+The question was asked as a "select all that apply" so we can get the number of installers who are certified for air-source and compare with installers who are certified for ground-source. Ideally we also want to get an idea of the ratio of installers who are certified for both.
+
+Table and Figure 3.4a show the distribution of company owners (excluding sole traders) who are certified for air-source and/or ground-source heat pumps (n=93). In this case, all company owners who are MCS certified are so for air source heat pumps. Therefore, the number of installers who selected ground or water source refers to installers who are certified for both types.
+
+```{r}
+# Step 1
+data$x22a_answer1 <- sapply(data$x22a_which_heat_pump_technologies_is_your_business_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[1]))
+data$x22a_answer2 <- sapply(data$x22a_which_heat_pump_technologies_is_your_business_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_airsource_MCS_owners = ifelse(str_detect(x22a_answer1, fixed("Air source heat pumps")) |
+                                      str_detect(x22a_answer2, fixed("Air source heat pumps")), 1, 0)) # 93 installers (all of them, those who are MCS certified)
+
+# Do the same for New build
+data <- data %>% 
+  mutate(dummy_groundsource_MCS_owners = ifelse(str_detect(x22a_answer1, fixed("Ground or water source heat pumps")) |
+                                      str_detect(x22a_answer2, fixed("Ground or water source heat pumps")), 1, 0)) # 55 installers are also certified for ground or water
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_airsource_MCS_owners, dummy_groundsource_MCS_owners)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Air source heat pumps", 
+               "Ground or water source heat pumps")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 3.4a. Distribution of certification by heat pump type for company owners", 
+      col.names = c("Type of work", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T) # n= 93
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the summary_table
+new_names <- c("Air source heat pumps", 
+               "Ground or water source heat pumps")
+
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Air source heat pumps", 
+               "Ground or water source heat pumps")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 3.4a. Distribution of certification by heat pump type for company owners", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 40))
+```
+
+Table and Figure 3.4b show the distribution for sole traders and contractors who are MCS certified (n=8). Just as for company owners, all installers who are MCS certified are so for air-source heat pumps. Therefore the count for ground or water source heat pumps shows the number of installers who are also certified for these technologies in addition to air-source heat pumps.
+
+```{r}
+# Step 1
+data$x22b_answer1 <- sapply(data$x22b_which_heat_pump_technologies_are_you_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[1]))
+data$x22b_answer2 <- sapply(data$x22b_which_heat_pump_technologies_are_you_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_airsource_MCS_traders = ifelse(str_detect(x22b_answer1, fixed("Air source heat pumps")) |
+                                              str_detect(x22b_answer2, fixed("Air source heat pumps")), 1, 0))
+
+# Do the same for New build
+data <- data %>% 
+  mutate(dummy_groundsource_MCS_traders = ifelse(str_detect(x22b_answer1, fixed("Ground or water source heat pumps")) |
+                                                 str_detect(x22b_answer2, fixed("Ground or water source heat pumps")), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_airsource_MCS_traders, dummy_groundsource_MCS_traders)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Air source heat pumps", 
+               "Ground or water source heat pumps")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 3.4b. Distribution of certification by heat pump type for sole traders and contractors", 
+      col.names = c("Type of work", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T) # n=8
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the summary_table
+new_names <- c("Air source heat pumps", 
+               "Ground or water source heat pumps")
+
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Air source heat pumps", 
+               "Ground or water source heat pumps")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 3.4b. Distribution of certification by heat pump type for sole traders and contractors", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 40))
+```
+
+Table and Figure 3.4c show the distribution for employees who work for company that are MCS certified (n=96). Just as for the two previous categories, all installers who are MCS certified are so for air-source heat pumps. Therefore the count for ground or water source heat pumps shows the number of installers who are also certified for these technologies in addition to air-source heat pumps.
+
+```{r}
+# Step 1
+data$x22c_answer1 <- sapply(data$x22c_which_heat_pump_technologies_is_the_firm_you_work_for_you_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[1]))
+data$x22c_answer2 <- sapply(data$x22c_which_heat_pump_technologies_is_the_firm_you_work_for_you_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_airsource_MCS_employees = ifelse(str_detect(x22c_answer1, fixed("Air source heat pumps")) |
+                                                str_detect(x22c_answer2, fixed("Air source heat pumps")), 1, 0))
+
+# Do the same for New build
+data <- data %>% 
+  mutate(dummy_groundsource_MCS_employees = ifelse(str_detect(x22c_answer1, fixed("Ground or water source heat pumps")) |
+                                                   str_detect(x22c_answer2, fixed("Ground or water source heat pumps")), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_airsource_MCS_employees, dummy_groundsource_MCS_employees)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Air source heat pumps", 
+               "Ground or water source heat pumps")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 3.4c. Distribution of certification by heat pump type for employees", 
+      col.names = c("Type of work", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T) # n=96
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the summary_table
+new_names <- c("Air source heat pumps", 
+               "Ground or water source heat pumps")
+
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Air source heat pumps", 
+               "Ground or water source heat pumps")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 3.4c. Distribution of certification by heat pump type for employees", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 40))
+```
+
+Given the distribution above, it might be interesting to look if the companies which are certified for all types of heat pumps (not just air-source heat pumps) are systematically the largest ones.
+
+#### 3.05 \| Of those who are MCS certified, for how long have they been certified?
+
+*[For internal reference: catch-up with team here and decision to stop with table for now and produce only figures with counts directly on bar plots].*
+
+We also want to know how long MCS certified installers have been so. Figure 3.5 shows the distribution (only installers who responded that they are currently MCS-certified). That is, 101 installers in total (see Figures 3.1a and 3.1b for further details, note that employees were not asked this question).
+
+```{r}
+# Merge q23a (company owners) and q23b (sole traders and contractors). Need to turn not asked into NA to merge.
+# Duplicate variables x23a and x23b to keep originals
+data$x23a_how_long_has_your_business_been_mcs_certified_for_heat_pump_installations_bis <- data$x23a_how_long_has_your_business_been_mcs_certified_for_heat_pump_installations
+data$x23b_how_long_have_you_been_mcs_certified_for_heat_pump_installations_bis <- data$x23b_how_long_have_you_been_mcs_certified_for_heat_pump_installations
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x23a_how_long_has_your_business_been_mcs_certified_for_heat_pump_installations_bis = recode(x23a_how_long_has_your_business_been_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+data <- data %>%
+  mutate(x23b_how_long_have_you_been_mcs_certified_for_heat_pump_installations_bis = recode(x23b_how_long_have_you_been_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+
+# Merge
+data <- data %>% 
+  mutate(x23_merged = coalesce(x23a_how_long_has_your_business_been_mcs_certified_for_heat_pump_installations_bis, x23b_how_long_have_you_been_mcs_certified_for_heat_pump_installations_bis))
+
+# Plot the distribution for company owners, sole traders, and contractors
+data_filtered <- data[!is.na(data$x23_merged),]
+ggplot(data_filtered, aes(x = x23_merged)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 3.5. Distribtion of how long installers have been MCS certified (company owners, sole traders and contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Note that Figure 3.5 combines all installers except employees. Here is the distribution for sole traders and contractors only: 2 responded "less than 1 year", 2 "1 to 3 years", 3 "3 to 5 years" and 1 responded "over 10 years."
+
+#### 3.06 \| Of those who are MCS certified, how long did it take them to become certified?
+
+For the same group of installers (company owners, sole traders, and contractors), we now look at ho long it took them to become MCS certified. Figure 3.6a shows the distribution.
+
+```{r}
+# Merge q23a (company owners) and q23b (sole traders and contractors). Need to turn not asked into NA to merge.
+# Duplicate variables x23a and x23b to keep originals
+data$x24a_how_long_did_the_certification_process_take_from_application_to_certification_bis <- data$x24a_how_long_did_the_certification_process_take_from_application_to_certification
+data$x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis <- data$x24b_how_long_did_the_certification_process_take_from_application_to_certification
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x24a_how_long_did_the_certification_process_take_from_application_to_certification_bis = recode(x24a_how_long_did_the_certification_process_take_from_application_to_certification_bis, "Not asked" = NA_character_))
+data <- data %>%
+  mutate(x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis = recode(x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis, "Not asked" = NA_character_))
+
+# Merge
+data <- data %>% 
+  mutate(x24_merged = coalesce(x24a_how_long_did_the_certification_process_take_from_application_to_certification_bis, x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis))
+
+# Plot the distribution for company owners, sole traders, and contractors
+data_filtered <- data[!is.na(data$x24_merged),]
+ggplot(data_filtered, aes(x = x24_merged)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 3.6a. Distribtion of how long it took installers to become MCS certified (company owners, sole traders and contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Note that it took sole traders and contractors relatively longer (slightly different distribution). Figure 3.6b shows the distribution for sole traders and contractors only.
+
+```{r}
+# Duplicate variable x24b to keep originals
+data$x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis <- data$x24b_how_long_did_the_certification_process_take_from_application_to_certification
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis = recode(x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis, "Not asked" = NA_character_))
+
+# Plot the distribution for company owners, sole traders, and contractors
+data_filtered <- data[!is.na(data$x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis),]
+ggplot(data_filtered, aes(x = x24b_how_long_did_the_certification_process_take_from_application_to_certification_bis)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 3.6b. Distribtion of how long it took installers to become MCS certified (sole traders and contractors only)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+
+```
+
+#### 3.07 \| Of those who were previously MCS certified, what types of heat pump were they certified to install?
+
+We are now looking at respondents who said they were previously MCS certified. Note that this is a very small sample (n=10), including company owners (4), sole traders and contractors (5) and employees (1).
+
+In this case, the sample is so small that figures are not needed.
+
+Out of the 4 *company owners* who used to be MCS certified, all were for air-source and none responded ground or water-source.
+
+For the 5 *sole traders and contractors*, 2 used to be MCS certified for both air source and ground source heat pumps, 2 for air-source heat pumps only and 1 for ground source heat pumps only. (Note that among the 5 respondents here, 4 are sole traders ad 1 is a contractor).
+
+Lastly, the unique *employee* who worked for a company which used to be MCS certified, was certified for both air-source and ground-source heat pumps.
+
+```{r}
+# The code below produces the number used in the text above.
+# Create new dummies
+data$x26a_answer1 <- sapply(data$x26a_which_heat_pump_technologies_was_your_business_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[1]))
+data$x26a_answer2 <- sapply(data$x26a_which_heat_pump_technologies_was_your_business_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_previously_airsource_MCS_owners = ifelse(str_detect(x26a_answer1, fixed("Air source heat pumps")) |
+                                      str_detect(x26a_answer2, fixed("Air source heat pumps")), 1, 0)) # 4 installers (all of them, those who are MCS certified)
+data <- data %>% 
+  mutate(dummy_previously_groundsource_MCS_owners = ifelse(str_detect(x26a_answer1, fixed("Ground or water source heat pumps")) |
+                                      str_detect(x26a_answer2, fixed("Ground or water source heat pumps")), 1, 0)) # 0 installer are also certified for ground or water
+
+# Do the same for sole traders and contractors
+# Create new dummies
+data$x26b_answer1 <- sapply(data$x26b_which_heat_pump_technologies_were_you_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[1]))
+data$x26b_answer2 <- sapply(data$x26b_which_heat_pump_technologies_were_you_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_previously_airsource_MCS_traders_contractors = ifelse(str_detect(x26b_answer1, fixed("Air source heat pumps")) |
+                                      str_detect(x26b_answer2, fixed("Air source heat pumps")), 1, 0)) # 4 installers
+data <- data %>% 
+  mutate(dummy_previously_groundsource_MCS_traders_contractors = ifelse(str_detect(x26b_answer1, fixed("Ground or water source heat pumps")) |
+                                      str_detect(x26b_answer2, fixed("Ground or water source heat pumps")), 1, 0)) # 3 installers
+
+# Do the same for employees
+# Create new dummies
+data$x26c_answer1 <- sapply(data$x26c_which_heat_pump_technologies_was_the_firm_you_work_for_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[1]))
+data$x26c_answer2 <- sapply(data$x26c_which_heat_pump_technologies_was_the_firm_you_work_for_mcs_certified_to_install_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_previously_airsource_MCS_employees = ifelse(str_detect(x26c_answer1, fixed("Air source heat pumps")) |
+                                      str_detect(x26c_answer2, fixed("Air source heat pumps")), 1, 0)) # 1 installer
+data <- data %>% 
+  mutate(dummy_previously_groundsource_MCS_employees = ifelse(str_detect(x26c_answer1, fixed("Ground or water source heat pumps")) |
+                                      str_detect(x26c_answer2, fixed("Ground or water source heat pumps")), 1, 0)) # 1 installer
+```
+
+#### 3.08 \| Of those who were previously MCS certified, for how long were they certified?
+
+In this case, the employee identified above was not asked this question. Therefore, n = 9 (4 company owners and 5 sole traders/contractors). Figure 3.8 shows the distribution. The two installers who responded "over ten years" are sole traders.
+
+```{r}
+# Merge q27a (company owners) and q27b (sole traders and contractors). Need to turn not asked into NA to merge.
+# Duplicate variables to keep originals
+data$x27a_how_long_was_your_business_mcs_certified_for_heat_pump_installations_bis <- data$x27a_how_long_was_your_business_mcs_certified_for_heat_pump_installations
+data$x27b_how_long_were_you_mcs_certified_for_heat_pump_installations_bis <- data$x27b_how_long_were_you_mcs_certified_for_heat_pump_installations
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x27a_how_long_was_your_business_mcs_certified_for_heat_pump_installations_bis = recode(x27a_how_long_was_your_business_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+data <- data %>%
+  mutate(x27b_how_long_were_you_mcs_certified_for_heat_pump_installations_bis = recode(x27b_how_long_were_you_mcs_certified_for_heat_pump_installations_bis, "Not asked" = NA_character_))
+
+# Merge
+data <- data %>% 
+  mutate(x27_merged = coalesce(x27a_how_long_was_your_business_mcs_certified_for_heat_pump_installations_bis, x27b_how_long_were_you_mcs_certified_for_heat_pump_installations_bis))
+
+# Plot the distribution for company owners, sole traders, and contractors
+data_filtered <- data[!is.na(data$x27_merged),]
+ggplot(data_filtered, aes(x = x27_merged)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 3.8. Distribtion of how long it took installers to become MCS certified (company owners, sole traders and contractors who used to be certified)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+#### 3.09 \| What proportion of companies that lost MCS certification due to the Nominated Technical Person leaving the firm intend on reinstating their MCS certification?
+
+Nobody was asked this question as no company owners responded that they were previously MCS certified but that the Nominated Technical Person had left.
+
+#### 3.10 \| Why do those who were previously MCS certified choose to remain without it?
+
+In this case, the sample is limited to the installers who were previously MCS certified but are not anymore (company owners, sole traders and contractors, n=9). Installers were asked to select all that apply, therefore the n for Figure 3.10 is larger than 9. The installers (n=3) who selected multiple options (2 options) all selected "it is too expensive" and "too much paperwork."
+
+```{r}
+# Create new dummies
+data$x29_answer1 <- sapply(data$x29_why_do_you_prefer_to_remain_without_mcs_certification_select_all_that_apply, function(x) as.character(x[1]))
+data$x29_answer2 <- sapply(data$x29_why_do_you_prefer_to_remain_without_mcs_certification_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_too_expensive = ifelse(str_detect(x29_answer1, fixed("It is too expensive")) |
+                                      str_detect(x29_answer2, fixed("It is too expensive")), 1, 0))
+data <- data %>% 
+  mutate(dummy_too_much_paperwork = ifelse(str_detect(x29_answer1, fixed("There is too much paperwork")) |
+                                      str_detect(x29_answer2, fixed("There is too much paperwork")), 1, 0))
+data <- data %>% 
+  mutate(dummy_training = ifelse(str_detect(x29_answer1, fixed("There is too much required training")) |
+                                      str_detect(x29_answer2, fixed("There is too much required training")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_retrofit = ifelse(str_detect(x29_answer1, fixed("My company doesn’t work in retrofit")) |
+                                    str_detect(x29_answer2, fixed("My company doesn’t work in retrofit")), 1, 0))
+data <- data %>% 
+  mutate(dummy_prefer_umbrella_scheme = ifelse(str_detect(x29_answer1, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x29_answer2, fixed("I prefer to work through an MCS umbrella scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_prefer_no_MCS = ifelse(str_detect(x29_answer1, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x29_answer2, fixed("I prefer to do retrofit outside the MCS scheme")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_other = ifelse(str_detect(x29_answer1, fixed("Other")) |
+                                      str_detect(x29_answer2, fixed("Other")), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+subset_dummy <- data %>%
+  select(dummy_too_expensive,
+         dummy_too_much_paperwork,
+         dummy_training,
+         dummy_no_retrofit,
+         dummy_prefer_umbrella_scheme,
+         dummy_prefer_no_MCS,
+         dummy_other)
+
+subset_dummy <- subset_dummy %>%
+  mutate_all(as.factor)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("It is too expensive",
+               "There is too much paperwork",
+               "There is too much required training",
+               "My company doesn’t work in retrofit",
+               "I prefer to work through an MCS umbrella scheme",
+               "I prefer to do retrofit outside the MCS scheme",
+               "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, frequency = as.vector(t(summary_table)))
+
+# Produce plot
+ggplot(summary_table, aes(x = factor(dummy_variable, levels = c("It is too expensive",
+               "There is too much paperwork",
+               "There is too much required training",
+               "My company doesn’t work in retrofit",
+               "I prefer to work through an MCS umbrella scheme",
+               "I prefer to do retrofit outside the MCS scheme",
+               "Other")), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(stat ='identity', aes(label = frequency), vjust = -0.5, size = 3) + 
+  labs(title = "Figure 3.10. Distribution of the reasons why installers who were previously MCS certified choose to remain without it (comapny owners, sole traders and contractors)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+#### 3.11 \| How do the reasons for remaining without MCS certification differ depending on the size of the company survey participants work for or own?
+
+For the same group of installers (n=9), we want to know if the reasons they don't look to renew their MCS certification differ across categories. Note that as the sample is already small, further sub-setting will create very small subgroups. Figure 3.11 shows the distribution by the size of the company for company owners, sole traders and contractors (employees were not asked question 29).
+
+In this case, the four company owners who were asked this question were owners of small companies (5 or fewer employees). The remaining 5 installers who were asked this question were sole traders or contractors and therefore company size does not apply.
+
+```{r}
+# Code to check distribution manually
+# Create new dummies
+data$x29_answer1 <- sapply(data$x29_why_do_you_prefer_to_remain_without_mcs_certification_select_all_that_apply, function(x) as.character(x[1]))
+data$x29_answer2 <- sapply(data$x29_why_do_you_prefer_to_remain_without_mcs_certification_select_all_that_apply, function(x) as.character(x[2]))
+
+data <- data %>% 
+  mutate(dummy_too_expensive = ifelse(str_detect(x29_answer1, fixed("It is too expensive")) |
+                                      str_detect(x29_answer2, fixed("It is too expensive")), 1, 0))
+data <- data %>% 
+  mutate(dummy_too_much_paperwork = ifelse(str_detect(x29_answer1, fixed("There is too much paperwork")) |
+                                      str_detect(x29_answer2, fixed("There is too much paperwork")), 1, 0))
+data <- data %>% 
+  mutate(dummy_training = ifelse(str_detect(x29_answer1, fixed("There is too much required training")) |
+                                      str_detect(x29_answer2, fixed("There is too much required training")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_retrofit = ifelse(str_detect(x29_answer1, fixed("My company doesn’t work in retrofit")) |
+                                    str_detect(x29_answer2, fixed("My company doesn’t work in retrofit")), 1, 0))
+data <- data %>% 
+  mutate(dummy_prefer_umbrella_scheme = ifelse(str_detect(x29_answer1, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x29_answer2, fixed("I prefer to work through an MCS umbrella scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_prefer_no_MCS = ifelse(str_detect(x29_answer1, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x29_answer2, fixed("I prefer to do retrofit outside the MCS scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other = ifelse(str_detect(x29_answer1, fixed("Other")) |
+                                      str_detect(x29_answer2, fixed("Other")), 1, 0))
+
+# Create subset to check manually
+subset_check <- data %>% 
+  select(x0a_response_id,
+         dummy_too_expensive,
+         dummy_too_much_paperwork,
+         dummy_training,
+         dummy_no_retrofit,
+         dummy_prefer_umbrella_scheme,
+         dummy_prefer_no_MCS,
+         dummy_other,
+         size_company_owned_collapsed_1,
+         employment_type)
+```
+
+#### 3.12 \| Why don’t survey participants get MCS certified?
+
+Next, we want to know why some businesses never became MCS certified. Installers who replied "no, never" to question 21 "Is your business/ are you MCS certified for heat pump installations" (n=89). 48 company owners and 41 sole traders or contractors. Figure 3.12a shows the distribution for company owners (excluding sole traders).
+
+```{r}
+# Create new dummies
+data$x25a_answer1 <- sapply(data$x25a_why_isnt_your_business_mcs_certified_select_all_that_apply, function(x) as.character(x[1]))
+data$x25a_answer2 <- sapply(data$x25a_why_isnt_your_business_mcs_certified_select_all_that_apply, function(x) as.character(x[2]))
+data$x25a_answer3 <- sapply(data$x25a_why_isnt_your_business_mcs_certified_select_all_that_apply, function(x) as.character(x[3]))
+data$x25a_answer4 <- sapply(data$x25a_why_isnt_your_business_mcs_certified_select_all_that_apply, function(x) as.character(x[4]))
+data$x25a_answer5 <- sapply(data$x25a_why_isnt_your_business_mcs_certified_select_all_that_apply, function(x) as.character(x[5]))
+data <- data %>% 
+  mutate(dummy_expensive_25a = ifelse(str_detect(x25a_answer1, fixed("It is too expensive")) |
+                                      str_detect(x25a_answer2, fixed("It is too expensive")) |
+                                      str_detect(x25a_answer3, fixed("It is too expensive")) |
+                                      str_detect(x25a_answer4, fixed("It is too expensive")) |
+                                      str_detect(x25a_answer5, fixed("It is too expensive")), 1, 0))
+data <- data %>% 
+  mutate(dummy_paperwork_25a = ifelse(str_detect(x25a_answer1, fixed("There is too much paperwork")) |
+                                      str_detect(x25a_answer2, fixed("There is too much paperwork")) |
+                                      str_detect(x25a_answer3, fixed("There is too much paperwork")) |
+                                      str_detect(x25a_answer4, fixed("There is too much paperwork")) |
+                                      str_detect(x25a_answer5, fixed("There is too much paperwork")), 1, 0))
+data <- data %>% 
+  mutate(dummy_training_25a = ifelse(str_detect(x25a_answer1, fixed("There is too much required training")) |
+                                      str_detect(x25a_answer2, fixed("There is too much required training")) |
+                                      str_detect(x25a_answer3, fixed("There is too much required training")) |
+                                      str_detect(x25a_answer4, fixed("There is too much required training")) |
+                                      str_detect(x25a_answer5, fixed("There is too much required training")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_retrofit_25a = ifelse(str_detect(x25a_answer1, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25a_answer2, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25a_answer3, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25a_answer4, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25a_answer5, fixed("My company doesn’t work in retrofit")), 1, 0))
+data <- data %>% 
+  mutate(dummy_umbrella_25a = ifelse(str_detect(x25a_answer1, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25a_answer2, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25a_answer3, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25a_answer4, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25a_answer5, fixed("I prefer to work through an MCS umbrella scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_MCS_25a = ifelse(str_detect(x25a_answer1, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25a_answer2, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25a_answer3, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25a_answer4, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25a_answer5, fixed("I prefer to do retrofit outside the MCS scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_colleague_25a = ifelse(str_detect(x25a_answer1, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25a_answer2, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25a_answer3, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25a_answer4, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25a_answer5, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_25a = ifelse(str_detect(x25a_answer1, fixed("Other")) |
+                                      str_detect(x25a_answer2, fixed("Other")) |
+                                      str_detect(x25a_answer3, fixed("Other")) |
+                                      str_detect(x25a_answer4, fixed("Other")) |
+                                      str_detect(x25a_answer5, fixed("Other")), 1, 0))
+
+# Select dummy variables
+subset_dummy <- data %>%
+  select(dummy_expensive_25a,
+         dummy_paperwork_25a,
+         dummy_training_25a,
+         dummy_no_retrofit_25a,
+         dummy_umbrella_25a,
+         dummy_no_MCS_25a,
+         dummy_colleague_25a,
+         dummy_other_25a)
+
+subset_dummy <- subset_dummy %>%
+  mutate_all(as.factor)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, frequency = as.vector(t(summary_table)))
+
+# Produce plot
+ggplot(summary_table, aes(x = factor(dummy_variable, levels = c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(stat ='identity', aes(label = frequency), vjust = -0.4, size = 3) + 
+  labs(title = "Figure 3.12a. Distribution of the reasons why company owners choose not to be MCS certified", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 50, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 12))
+```
+
+Figure 3.12b shows the distribution for sole traders (n=18)
+
+```{r}
+# Create new dummies
+data$x25b_answer1 <- sapply(data$x25b_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[1]))
+data$x25b_answer2 <- sapply(data$x25b_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[2]))
+data$x25b_answer3 <- sapply(data$x25b_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[3]))
+data$x25b_answer4 <- sapply(data$x25b_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[4]))
+data$x25b_answer5 <- sapply(data$x25b_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[5]))
+data <- data %>% 
+  mutate(dummy_expensive_25b = ifelse(str_detect(x25b_answer1, fixed("It is too expensive")) |
+                                      str_detect(x25b_answer2, fixed("It is too expensive")) |
+                                      str_detect(x25b_answer3, fixed("It is too expensive")) |
+                                      str_detect(x25b_answer4, fixed("It is too expensive")) |
+                                      str_detect(x25b_answer5, fixed("It is too expensive")), 1, 0))
+data <- data %>% 
+  mutate(dummy_paperwork_25b = ifelse(str_detect(x25b_answer1, fixed("There is too much paperwork")) |
+                                      str_detect(x25b_answer2, fixed("There is too much paperwork")) |
+                                      str_detect(x25b_answer3, fixed("There is too much paperwork")) |
+                                      str_detect(x25b_answer4, fixed("There is too much paperwork")) |
+                                      str_detect(x25b_answer5, fixed("There is too much paperwork")), 1, 0))
+data <- data %>% 
+  mutate(dummy_training_25b = ifelse(str_detect(x25b_answer1, fixed("There is too much required training")) |
+                                      str_detect(x25b_answer2, fixed("There is too much required training")) |
+                                      str_detect(x25b_answer3, fixed("There is too much required training")) |
+                                      str_detect(x25b_answer4, fixed("There is too much required training")) |
+                                      str_detect(x25b_answer5, fixed("There is too much required training")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_retrofit_25b = ifelse(str_detect(x25b_answer1, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25b_answer2, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25b_answer3, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25b_answer4, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25b_answer5, fixed("My company doesn’t work in retrofit")), 1, 0))
+data <- data %>% 
+  mutate(dummy_umbrella_25b = ifelse(str_detect(x25b_answer1, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25b_answer2, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25b_answer3, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25b_answer4, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25b_answer5, fixed("I prefer to work through an MCS umbrella scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_MCS_25b = ifelse(str_detect(x25b_answer1, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25b_answer2, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25b_answer3, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25b_answer4, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25b_answer5, fixed("I prefer to do retrofit outside the MCS scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_colleague_25b = ifelse(str_detect(x25b_answer1, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25b_answer2, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25b_answer3, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25b_answer4, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25b_answer5, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_25b = ifelse(str_detect(x25b_answer1, fixed("Other")) |
+                                      str_detect(x25b_answer2, fixed("Other")) |
+                                      str_detect(x25b_answer3, fixed("Other")) |
+                                      str_detect(x25b_answer4, fixed("Other")) |
+                                      str_detect(x25b_answer5, fixed("Other")), 1, 0))
+
+# Select dummy variables
+subset_dummy <- data %>%
+  select(dummy_expensive_25b,
+         dummy_paperwork_25b,
+         dummy_training_25b,
+         dummy_no_retrofit_25b,
+         dummy_umbrella_25b,
+         dummy_no_MCS_25b,
+         dummy_colleague_25b,
+         dummy_other_25b)
+
+subset_dummy <- subset_dummy %>%
+  mutate_all(as.factor)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, frequency = as.vector(t(summary_table)))
+
+# Produce plot
+ggplot(summary_table, aes(x = factor(dummy_variable, levels = c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(stat ='identity', aes(label = frequency), vjust = -0.4, size = 3) + 
+  labs(title = "Figure 3.12b. Distribution of the reasons why sole traders choose not to be MCS certified", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 15, by = 2)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 12))
+```
+
+Figure 3.12c shows the distribution for contractors and freelancers (n=23).
+
+```{r}
+# Create new dummies
+data$x25c_answer1 <- sapply(data$x25c_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[1]))
+data$x25c_answer2 <- sapply(data$x25c_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[2]))
+data$x25c_answer3 <- sapply(data$x25c_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[3]))
+data$x25c_answer4 <- sapply(data$x25c_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[4]))
+data$x25c_answer5 <- sapply(data$x25c_why_arent_you_mcs_certified_select_all_that_apply, function(x) as.character(x[5]))
+data <- data %>% 
+  mutate(dummy_expensive_25c = ifelse(str_detect(x25c_answer1, fixed("It is too expensive")) |
+                                      str_detect(x25c_answer2, fixed("It is too expensive")) |
+                                      str_detect(x25c_answer3, fixed("It is too expensive")) |
+                                      str_detect(x25c_answer4, fixed("It is too expensive")) |
+                                      str_detect(x25c_answer5, fixed("It is too expensive")), 1, 0))
+data <- data %>% 
+  mutate(dummy_paperwork_25c = ifelse(str_detect(x25c_answer1, fixed("There is too much paperwork")) |
+                                      str_detect(x25c_answer2, fixed("There is too much paperwork")) |
+                                      str_detect(x25c_answer3, fixed("There is too much paperwork")) |
+                                      str_detect(x25c_answer4, fixed("There is too much paperwork")) |
+                                      str_detect(x25c_answer5, fixed("There is too much paperwork")), 1, 0))
+data <- data %>% 
+  mutate(dummy_training_25c = ifelse(str_detect(x25c_answer1, fixed("There is too much required training")) |
+                                      str_detect(x25c_answer2, fixed("There is too much required training")) |
+                                      str_detect(x25c_answer3, fixed("There is too much required training")) |
+                                      str_detect(x25c_answer4, fixed("There is too much required training")) |
+                                      str_detect(x25c_answer5, fixed("There is too much required training")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_retrofit_25c = ifelse(str_detect(x25c_answer1, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25c_answer2, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25c_answer3, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25c_answer4, fixed("My company doesn’t work in retrofit")) |
+                                        str_detect(x25c_answer5, fixed("My company doesn’t work in retrofit")), 1, 0))
+data <- data %>% 
+  mutate(dummy_umbrella_25c = ifelse(str_detect(x25c_answer1, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25c_answer2, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25c_answer3, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25c_answer4, fixed("I prefer to work through an MCS umbrella scheme")) |
+                                      str_detect(x25c_answer5, fixed("I prefer to work through an MCS umbrella scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_no_MCS_25c = ifelse(str_detect(x25c_answer1, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25c_answer2, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25c_answer3, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25c_answer4, fixed("I prefer to do retrofit outside the MCS scheme")) |
+                                      str_detect(x25c_answer5, fixed("I prefer to do retrofit outside the MCS scheme")), 1, 0))
+data <- data %>% 
+  mutate(dummy_colleague_25c = ifelse(str_detect(x25c_answer1, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25c_answer2, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25c_answer3, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25c_answer4, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")) |
+                                      str_detect(x25c_answer5, fixed("I prefer to have a colleague from another company sign off my installations for MCS certification.")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_25c = ifelse(str_detect(x25c_answer1, fixed("Other")) |
+                                      str_detect(x25c_answer2, fixed("Other")) |
+                                      str_detect(x25c_answer3, fixed("Other")) |
+                                      str_detect(x25c_answer4, fixed("Other")) |
+                                      str_detect(x25c_answer5, fixed("Other")), 1, 0))
+
+# Select dummy variables
+subset_dummy <- data %>%
+  select(dummy_expensive_25c,
+         dummy_paperwork_25c,
+         dummy_training_25c,
+         dummy_no_retrofit_25c,
+         dummy_umbrella_25c,
+         dummy_no_MCS_25c,
+         dummy_colleague_25c,
+         dummy_other_25c)
+
+subset_dummy <- subset_dummy %>%
+  mutate_all(as.factor)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, frequency = as.vector(t(summary_table)))
+
+# Produce plot
+ggplot(summary_table, aes(x = factor(dummy_variable, levels = c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(stat ='identity', aes(label = frequency), vjust = -0.4, size = 3) + 
+  labs(title = "Figure 3.12c. Distribution of the reasons why contractors/freelancers choose not to be MCS certified", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 15, by = 2)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 12))
+```
+
+The distribution are similar across categories of installers. Figure 3.12d shows the distribution for all 89 installers who were asked question 29.
+
+```{r}
+# Need to run chunks of code for Figures 3.12a, 3.12b and 3.12c
+# Merge each binary
+data <- data %>% 
+  mutate(dummy_expensive_all = coalesce(dummy_expensive_25a, dummy_expensive_25b, dummy_expensive_25c))
+data <- data %>% 
+  mutate(dummy_paperwork_all = coalesce(dummy_paperwork_25a, dummy_paperwork_25b, dummy_paperwork_25c))
+data <- data %>% 
+  mutate(dummy_training_all = coalesce(dummy_training_25a, dummy_training_25b, dummy_training_25c))
+data <- data %>% 
+  mutate(dummy_no_retrofit_all = coalesce(dummy_no_retrofit_25a, dummy_no_retrofit_25b, dummy_no_retrofit_25c))
+data <- data %>% 
+  mutate(dummy_umbrella_all = coalesce(dummy_umbrella_25a, dummy_umbrella_25b, dummy_umbrella_25c))
+data <- data %>% 
+  mutate(dummy_no_MCS_all = coalesce(dummy_no_MCS_25a, dummy_no_MCS_25b, dummy_no_MCS_25c))
+data <- data %>% 
+  mutate(dummy_colleague_all = coalesce(dummy_colleague_25a, dummy_colleague_25b, dummy_colleague_25c))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_25a, dummy_other_25b, dummy_other_25c))
+
+# Select dummy variables
+subset_dummy <- data %>%
+  select(dummy_expensive_all,
+         dummy_paperwork_all,
+         dummy_training_all,
+         dummy_no_retrofit_all,
+         dummy_umbrella_all,
+         dummy_no_MCS_all,
+         dummy_colleague_all,
+         dummy_other_all)
+
+subset_dummy <- subset_dummy %>%
+  mutate_all(as.factor)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, frequency = as.vector(t(summary_table)))
+
+# Produce plot
+ggplot(summary_table, aes(x = factor(dummy_variable, levels = c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(stat ='identity', aes(label = frequency), vjust = -0.2, size = 3) + 
+  labs(title = "Figure 3.12d. Distribution of the reasons why installers choose not to be MCS certified (company owners, sole traders and contractors)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 12))
+```
+
+#### 3.13 \| How do the reasons for not getting MCS certified differ depending on the size of the company survey participants work for or own?
+
+We now know about the reasons why installers do not want to become MCS certified (similar across employment type). For company owners and sole traders, we also want to know if theses reasons differ across different company sizes. Table and Figure 3.13 shows the distribution by the size of company owned for company owners and sole traders (n=66).
+
+Note that employees were not asked about the reasons the companies they work for is not MCS certified and contractors were not asked about the size of the companies that employ them for jobs.
+
+```{r}
+##### Must run chunks of code for Q3.12 above to create variables #####
+
+# Take the variables for all installers (x25_name_all)
+# Use with size_company_owned_collapsed_1
+
+# Subset by employment type to select company owners and sole traders
+subset_q13 <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner")) %>% 
+  select(dummy_expensive_all,
+         dummy_paperwork_all,
+         dummy_training_all,
+         dummy_no_retrofit_all,
+         dummy_umbrella_all,
+         dummy_no_MCS_all,
+         dummy_colleague_all,
+         dummy_other_all,
+         size_company_owned_collapsed_1)
+
+# Summarise the distribution
+summary_table <- subset_q13 %>%
+  group_by(size_company_owned_collapsed_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+colnames(summary_table) <- c("Company size", "It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+order_labels <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 3.13. Distribution of the reasons why installers choose not to be MCS certified (company owners and sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 60, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Must run code for Figure first
+# Set levels of size_company_owned_collapsed_1 as columns
+transposed_summary <- as.data.frame(t(as.matrix(summary_table)))
+colnames(transposed_summary) <- transposed_summary[1, ]  # Set column names to the first row
+transposed_summary <- transposed_summary[-1, ]
+
+# Create distribution table
+kable(transposed_summary, 
+      caption = "Table 3.13. Distribution of the reasons why installers choose not to be MCS certified (company owners and sole traders)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+#### 3.14 \| What barriers discourage survey participants from getting MCS certification?
+
+Next, we combine answers for installers(company owners, sole traders and contractors) who have never been MCS certified and those who used to but no longer want to be MCS certified to get a clear idea of the existing barriers which discourage installers from obtaining MCS certification.
+
+To do so we merged the following survey questions: 25a, 25b, 25c and 29. Due to one difference in the choices across these questions, we drop one answer "I prefer to have a colleague from another company sign off my installations for MCS certification", which represent 4 installers in total (1 company owner and 3 sole traders).
+
+Figure 3.14 shows the distribution (n=94).
+
+```{r}
+### Must run code for sections 3.12 and 3.10 first ###
+
+# Merge corresponding pairs
+data <- data %>% 
+  mutate(dummy_expensive_merged = coalesce(dummy_expensive_all, dummy_too_expensive))
+data <- data %>% 
+  mutate(dummy_paperwork_merged = coalesce(dummy_paperwork_all, dummy_too_much_paperwork))
+data <- data %>% 
+  mutate(dummy_training_merged = coalesce(dummy_training_all, dummy_training))
+data <- data %>% 
+  mutate(dummy_no_retrofit_merged = coalesce(dummy_no_retrofit_all, dummy_no_retrofit))
+data <- data %>% 
+  mutate(dummy_umbrella_merged = coalesce(dummy_umbrella_all, dummy_prefer_umbrella_scheme))
+data <- data %>% 
+  mutate(dummy_no_MCS_merged = coalesce(dummy_no_MCS_all, dummy_prefer_no_MCS))
+data <- data %>% 
+  mutate(dummy_other_merged = coalesce(dummy_other_all, dummy_other))
+
+# Select dummy variables
+subset_dummy <- data %>%
+  select(dummy_expensive_merged,
+         dummy_paperwork_merged,
+         dummy_training_merged,
+         dummy_no_retrofit_merged,
+         dummy_umbrella_merged,
+         dummy_no_MCS_merged,
+         dummy_other_merged)
+
+subset_dummy <- subset_dummy %>%
+  mutate_all(as.factor)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, frequency = as.vector(t(summary_table)))
+
+# Produce plot
+ggplot(summary_table, aes(x = factor(dummy_variable, levels = c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "Other")), y = frequency)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(stat ='identity', aes(label = frequency), vjust = -0.4, size = 3) + 
+  labs(title = "Figure 3.14. Distribution of the reasons why installers (excluding employees) choose not to be MCS certified", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 12))
+```
+
+#### 3.15 \| How do the barriers that discourage survey participants from getting MCS certification differ depending on the size of the company they work for or own?
+
+Lastly, we want to get the distribution by company size (sole traders, which is company size of 1, and company owners). Figure 3.15 shows the distribution. The difference with Table and Figure 3.13 is that we include here the installers who replied that they used to be MCS certified but no longer want to be.
+
+```{r}
+### Must run code for section 3.14 first ###
+
+# Subset by employment type to select company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner")) %>% 
+  select(dummy_expensive_merged,
+         dummy_paperwork_merged,
+         dummy_training_merged,
+         dummy_no_retrofit_merged,
+         dummy_umbrella_merged,
+         dummy_no_MCS_merged,
+         dummy_other_merged,
+         size_company_owned_collapsed_1)
+
+# Summarise the distribution
+summary_table <- subset_question %>%
+  group_by(size_company_owned_collapsed_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+colnames(summary_table) <- c("Company size", "It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "Other")
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+order_labels <- c("It is too expensive", "There is too much paperwork", "There is too much required training", "My company doesn’t work in retrofit", "I prefer to work through an MCS umbrella scheme", "I prefer to do retrofit outside the MCS scheme", "I prefer to have a colleague from another company sign off my installations for MCS certification.", "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 3.15. Distribution of the reasons why installers choose not to be MCS certified (company owners and sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 60, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Must run code for Figure first
+# Set levels of size_company_owned_collapsed_1 as columns
+transposed_summary <- as.data.frame(t(as.matrix(summary_table)))
+colnames(transposed_summary) <- transposed_summary[1, ]  # Set column names to the first row
+transposed_summary <- transposed_summary[-1, ]
+
+# Create distribution table
+kable(transposed_summary, 
+      caption = "Table 3.15. Distribution of the reasons why installers choose not to be MCS certified (company owners and sole traders)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+See Section 4 for the next part of the installer survey analysis.
+
+To generate output: rmarkdown::render("G:\\\\My Drive\\\\Installer survey\\\\Installer survey - Section 3.Rmd")
