@@ -1,0 +1,2129 @@
+---
+title: "Installer survey analysis"
+author: "Benoit Siberdt"
+date: "2024-01-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Heat pump installer survey analysis
+
+### Foreword
+
+Throughout the analysis, we collapsed responses and respondents to the survey into various subcategories to get the most relevant information. This collapsing was conducted based on the guidelines laid out in the [analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit){target="_blank"}.
+
+The code associated with the pre-analysis tasks for Section 1 is included below. It mostly consists of creating new variables with collapse the responses of the survey in aggregated categories.
+
+```{r}
+##### Load packages
+library(arrow)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(wesanderson)
+library(khroma)
+library(RColorBrewer)
+
+##### Load dataset
+file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
+Installer_survey_data <- arrow::read_parquet(file_path)
+
+# Duplicate dataset to be sure not to mess it up
+data_full <- Installer_survey_data
+
+# Link to the Miro board
+# https://miro.com/app/board/uXjVNWK_xBg=/
+
+# Link to the analysis plan
+# https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.voghu12g248q
+
+##### Filter out partial responses
+data <- data_full %>%
+  filter(`0e. Analytical Sample` == "TRUE")  
+
+##### Change names of variables to make things easier
+data <- clean_names(data)
+
+
+##### Pre-analysis - Collapsed options and new variables
+
+## Create employment_type variables
+data <- data %>%
+  mutate(employment_type = case_when(x5_are_you_responding_to_this_survey_as == "An employee of a firm" ~ "Employee", 
+                                     x5_are_you_responding_to_this_survey_as == "A contractor or freelancer" ~ "Contractor or freelancer",
+                                     x6a_what_size_company_do_you_own == "I’m a sole trader" ~ "Sole trader",
+                                     x6a_what_size_company_do_you_own == "I own a company with 5 or fewer employees" ~ "Company owner", 
+                                     x6a_what_size_company_do_you_own == "I own a company with 6-25 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with 26-100 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with over 100 employees" ~ "Company owner", TRUE ~ "Not asked"))
+data$employment_type <- as.factor(data$employment_type)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_soletrader_owner_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor or freelancer",
+                                                             employment_type == "Employee" ~ "Employee",
+                                                             employment_type == "Sole trader" ~ "Sole trader or company owner",
+                                                             employment_type == "Company owner" ~ "Sole trader or company owner"))
+data$employment_type_soletrader_owner_merged <- as.factor(data$employment_type_soletrader_owner_merged)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_employee_contractor_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Employee" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Sole trader" ~ "Sole trader",
+                                                                employment_type == "Company owner" ~ "Company owner"))
+data$employment_type_employee_contractor_merged <- as.factor(data$employment_type_employee_contractor_merged)
+
+# Create dummy variable for employment type
+data <- data %>%
+  mutate(dummy_employment_type = case_when(employment_type == "Employee" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Contractor or freelancer" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Company owner" ~ "Company owner or sole trader",
+                                           employment_type == "Sole trader" ~ "Company owner or sole trader"))
+data$dummy_employment_type <- as.factor(data$dummy_employment_type)
+
+# Create dummy for contractors and freelancers
+data <- data %>%
+  mutate(dummy_contractors = case_when(employment_type == "Contractor or freelancer" ~ 1, TRUE ~ 0))
+
+# Create dummy for employees
+data <- data %>%
+  mutate(dummy_employees = case_when(employment_type == "Employee" ~ 1, TRUE ~ 0))
+
+# Create dummy for sole traders
+data <- data %>%
+  mutate(dummy_soletraders = case_when(employment_type == "Sole traders" ~ 1, TRUE ~ 0))
+
+# Create dummy for company owner
+data <- data %>%
+  mutate(dummy_company_owner = case_when(employment_type == "Company owner" ~ 1, TRUE ~ 0))
+
+
+##### Participant age
+data <- data %>%
+  mutate(age_collapsed = recode_factor(x1_how_old_are_you,
+                                       "18-24" = "34 and under",
+                                       "25-34" = "34 and under",
+                                       "35-44" = "35-44",
+                                       "45-54" = "45-54",
+                                       "55-64" = "55 and over",
+                                       "65-74" = "55 and over",
+                                       "Over 75" = "55 and over",
+                                       "Prefer not to say" = "Prefer not to say"))
+
+
+##### Length of time in the heat pump sector
+data <- data %>%
+  mutate(length_hp_sector_collapsed = recode_factor(x4_how_long_have_you_been_working_with_heat_pumps,
+                                                    "I don’t work with heat pumps, but plan to do so in the twelve months" = "Don’t work with heat pumps",
+                                                    "I don’t work with heat pumps and have no plans to do so" = "Don’t work with heat pumps",
+                                                    "Don't know" = "Don’t work with heat pumps",
+                                                    "Less than 12 months" = "Under 3 years",
+                                                    "1-3 years" = "Under 3 years",
+                                                    "3-5 years" = "3-5 years",
+                                                    "5-10 years" = "5-10 years",
+                                                    "10-20 years" = "Over 10 years",
+                                                    "Over 20 years" = "Over 10 years"))
+
+
+##### Size of company owned
+# Version 1
+data <- data %>%
+  mutate(size_company_owned_collapsed_1 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium",
+                                                        "I own a company with 26-100 employees" = "Large",
+                                                        "I own a company with over 100 employees" = "Large",
+                                                        "Not asked" = "Not asked"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_owned_collapsed_2 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium and large",
+                                                        "I own a company with 26-100 employees" = "Medium and large",
+                                                        "I own a company with over 100 employees" = "Medium and large",
+                                                        "Not asked" = "Not asked"))
+
+
+##### Size of company employees work for
+# Version 1
+data <- data %>%
+  mutate(size_company_employee_work_1 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "5 or fewer",
+                                                      "I work for a company with 6-25 employees" = "6-25",
+                                                      "I work for a company with 26-100 employees" = "26-100",
+                                                      "I work for a company with over 100 employees" = "Over 100",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_employee_work_2 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "25 or fewer",
+                                                      "I work for a company with 6-25 employees" = "25 or fewer",
+                                                      "I work for a company with 26-100 employees" = "Over 25",
+                                                      "I work for a company with over 100 employees" = "Over 25",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+
+##### Distance travelled for work
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed = recode_factor(x10_how_far_from_your_business_location_would_you_typically_travel_for_jobs_approximately,
+                                                               "Less than 25 miles" = "Less than 25 miles",
+                                                               "25 to 50 miles" = "25-50 miles",
+                                                               "50 to 100 miles" = "50-100 miles",
+                                                               "100 to 200 miles" = "Over 100 miles",
+                                                               "200 to 300 miles" = "Over 100 miles",
+                                                               "More than 300 miles" = "Over 100 miles",
+                                                               "Don't know" = "Don't know"))
+```
+
+## Section 1 - Demographics
+
+#### 1.01 \| What is the spread of ages of the installer survey participants?
+
+Table 1.1 and Figure 1.1 summarise the age distribution of the respondents. Note that Figure 1 does not include the 5 installers who responded "prefer not to say to this question.
+
+```{r}
+table_q1 <- table(data$age_collapsed)
+kable(table_q1, 
+      caption = "Table 1.1. Age distribution", 
+      col.names = c("Age", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = age_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.1. Age distribution", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+```
+
+#### 1.02 \| What gender are the survey participants?
+
+The vast majority of respondents are male, consistent with existing data about the heating sector. Table 2 and Figure 1.2 show the distribution.
+
+```{r}
+table_q2 <- table(data[data$x2_how_would_you_describe_your_gender != "Prefer not to say", "x2_how_would_you_describe_your_gender"])
+kable(table_q2, 
+      caption = "Table 1.2. Gender distribution", 
+      col.names = c("Gender", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = x2_how_would_you_describe_your_gender)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.2. Gender distribution", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 400, by = 50))
+```
+
+#### 1.03 \| How long have survey participants worked in the heating sector?
+
+Table 1.3 and Figure 1.3 show the distribution of career lengths in the plumbing and heating sector (not heat pump specifically). The majority of respondents have been active in the sector for over 10 years.
+
+```{r}
+# Change levels for clarity
+data <- data %>% 
+  mutate(x3_how_long_have_you_worked_in_the_plumbing_and_heating_sector = fct_relevel(x3_how_long_have_you_worked_in_the_plumbing_and_heating_sector,"Less than 12 months", "1-3 years", "3-5 years", "5-10 years", "10-20 years", "Over 20 years", "Don't know"))
+
+table_q3 <- table(data$x3_how_long_have_you_worked_in_the_plumbing_and_heating_sector)
+kable(table_q3, 
+      caption = "Table 1.3. Length of career", 
+      col.names = c("Duration", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+Note that in Figure 1.3, the one response "Don't know" was removed for clarity.
+
+```{r}
+ggplot(data[data$x3_how_long_have_you_worked_in_the_plumbing_and_heating_sector != "Don't know", ], aes(x = x3_how_long_have_you_worked_in_the_plumbing_and_heating_sector)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.3. Distribution of career length in the plumbing and heating sector",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 200, by = 30))
+```
+
+#### 1.04 \| How long have survey participants worked with heat pumps?
+
+This time, respondents were asked how long they have been working with heat pumps specifically. Table 1.4 and Figure 1.4 summarise the distribution.
+
+```{r}
+table_q4 <- table(data$length_hp_sector_collapsed)
+kable(table_q4, 
+      caption = "Table 1.4. Length of experience working with heat pumps", 
+      col.names = c("Duration", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = length_hp_sector_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.4. Experience working with heat pumps",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+```
+
+#### 1.05 \| What proportion of survey participants are company owners, employees or contractors?
+
+```{r}
+table_q5 <- table(data$x5_are_you_responding_to_this_survey_as)
+kable(table_q5, 
+      caption = "Table 1.5. Professional occupation of installers", 
+      col.names = c("Categories", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = x5_are_you_responding_to_this_survey_as)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.5. Professional occupation of installers",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 250, by = 40))
+```
+
+From this question onward, respondents will be streamed through questions based on their answers to previous questions. These represent different "tracks" within the survey. For example, if installers responded to question 5 that they are employees, they will be asked question 6b and will not be asked either question 6a or 7.
+
+#### 1.06 \| What size company do survey participants work for, or own?
+
+##### What size company do you own? (Question 6a)
+
+A small company refers to a company with 5 or fewer employees, medium size refers to companies with 6 to 25 employees, and large refers to companies that employ over 26 people.
+
+```{r}
+# Duplicate variable
+data <- data %>%
+  mutate(size_company_owned_collapsed_1_bis = size_company_owned_collapsed_1)
+
+# Define the levels you want in the factor variable
+levels_to_include <- c("Sole trader", "Small", "Medium", "Large")
+
+# Create a factor variable with specified levels
+data$size_company_owned_collapsed_1_bis <- factor(data$size_company_owned_collapsed_1_bis, levels = levels_to_include)
+
+# Produce table
+table_q6a <- table(data$size_company_owned_collapsed_1_bis)
+kable(table_q6a, 
+      caption = "Table 1.6a. Size of company owned (version 1)", 
+      col.names = c("Company size", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+Note some respondents were not asked this question as they are employees or contractors/freelancers. As a result, Table 1.6a shows the distribution for a subset of respondents. The same applies for Figure 1.6a.
+
+```{r}
+ggplot(data[data$size_company_owned_collapsed_1 != "Not asked", ], aes(x = size_company_owned_collapsed_1)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.6a. Distribution of company size for owners and co-owners (version 1)",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 120, by = 20))
+```
+
+The same distribution is shown below for an alternative classification of company size in which medium size is merged with large.
+
+```{r}
+# Duplicate variable
+data <- data %>%
+  mutate(size_company_owned_collapsed_2_bis = size_company_owned_collapsed_2)
+
+# Define the levels you want in the factor variable
+levels_to_include <- c("Sole trader", "Small", "Medium and large")
+
+# Create a factor variable with specified levels
+data$size_company_owned_collapsed_2_bis <- factor(data$size_company_owned_collapsed_2_bis, levels = levels_to_include)
+
+# Produce table
+table_q6a_v2 <- table(data$size_company_owned_collapsed_2_bis)
+kable(table_q6a_v2, 
+      caption = "Table 1.6a. Size of company owned (version 2)", 
+      col.names = c("Company size", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data[data$size_company_owned_collapsed_2 != "Not asked", ], aes(x = size_company_owned_collapsed_2)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.6a. Distribution of company size for owners and co-owners (version 2)",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 120, by = 20))
+```
+
+##### What size company do you work for? (Question 6b)
+
+```{r}
+# Duplicate variable
+data <- data %>%
+  mutate(size_company_employee_work_1_bis = size_company_employee_work_1)
+
+# Define the levels you want in the factor variable
+levels_to_include <- c("5 or fewer", "6-25", "26-100", "Over 100")
+
+# Create a factor variable with specified levels
+data$size_company_employee_work_1_bis <- factor(data$size_company_employee_work_1_bis, levels = levels_to_include)
+
+# Produce table
+table_q6b <- table(data$size_company_employee_work_1_bis)
+kable(table_q6b, 
+      caption = "Table 1.6b. Size of company employees work for (version 1)", 
+      col.names = c("Company size", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+Note that Table 1.6b and Figure 1.6b show the distribution for the installers who are employees, company owners and contractors/freelancers are not included. The same applies for Figure 6b.
+
+```{r}
+ggplot(data[!data$size_company_employee_work_1 %in% c("Don't know", "Not asked"), ], aes(x = size_company_employee_work_1)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.6b. Distribution of company size employees work for (version 1)",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 65, by = 10))
+```
+
+For clarity, Figure 1.6b does not include the two employees who responded that they did not know about the size of the company in which they work.
+
+The same distribution is shown below for an alternative classification of company size is small (25 employees or fewer) or large (over 26 employees).
+
+```{r}
+# Duplicate variable
+data <- data %>%
+  mutate(size_company_employee_work_2_bis = size_company_employee_work_2)
+
+# Define the levels you want in the factor variable
+levels_to_include <- c("25 or fewer", "Over 25")
+
+# Create a factor variable with specified levels
+data$size_company_employee_work_2_bis <- factor(data$size_company_employee_work_2_bis, levels = levels_to_include)
+
+# Produce table
+table_q6b_v2 <- table(data$size_company_employee_work_2_bis)
+kable(table_q6b_v2, 
+      caption = "Table 1.6b. Size of company employees work for (version 2)", 
+      col.names = c("Company size", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data[!data$size_company_employee_work_2 %in% c("Don't know", "Not asked"), ], aes(x = size_company_employee_work_2)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.6b. Distribution of company size employees work for (version 2)",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10))
+```
+
+#### 1.07 \| How do sole traders or businesses with less than 5 employees work with family members?
+
+This is a question for which installers who are either sole traders or owners of a small business (\<5 employees) were asked to select all the choices that apply. It therefore requires a different approach in which the unit of analysis is not longer the installers but the way the installer works with family members (the options that installers were presented in the survey). In sum, what we are interested in for this question is no longer the distribution of installers but the distribution of the different ways of working with family members when you are a sole trader or owner of a micro-business.
+
+Note that installers (either sole traders or owners of micro-businesses) were given the possibility to select multiple options. Therefore a given installer may contribute to the total frequency of multiple ways of working with family members.
+
+```{r}
+# Turn list into character so r can read the different answers
+data$x7_answer1 <- sapply(data$x7_do_you_work_with_family_members_in_any_of_the_following_ways_select_all_that_apply, function(x) as.character(x[1]))
+data$x7_answer2 <- sapply(data$x7_do_you_work_with_family_members_in_any_of_the_following_ways_select_all_that_apply, function(x) as.character(x[2]))
+data$x7_answer3 <- sapply(data$x7_do_you_work_with_family_members_in_any_of_the_following_ways_select_all_that_apply, function(x) as.character(x[3]))
+data$x7_answer4 <- sapply(data$x7_do_you_work_with_family_members_in_any_of_the_following_ways_select_all_that_apply, function(x) as.character(x[4]))
+data$x7_answer5 <- sapply(data$x7_do_you_work_with_family_members_in_any_of_the_following_ways_select_all_that_apply, function(x) as.character(x[5])) # No respondent selected more than 4 options for question 7
+# Check using: table(data$answer)
+
+# Create dummy for each possible option
+# Operate a limited company
+data <- data %>% 
+  mutate(dummy_limited_company = ifelse(str_detect(x7_answer1, "Operate a limited company") |
+                                        str_detect(x7_answer2, "Operate a limited company") |
+                                        str_detect(x7_answer3, "Operate a limited company") |
+                                        str_detect(x7_answer4, "Operate a limited company"), 1, 0))
+
+# Employ family directly
+data <- data %>% 
+  mutate(dummy_employ_family_directly = ifelse(str_detect("Employ family directly", x7_answer1) |
+                                               str_detect("Employ family directly", x7_answer2) |
+                                               str_detect("Employ family directly", x7_answer3) |
+                                               str_detect("Employ family directly", x7_answer4), 1, 0))
+
+# Subcontract family members
+data <- data %>% 
+  mutate(dummy_subcontract_family = ifelse(str_detect("Subcontract family members", x7_answer1) |
+                                           str_detect("Subcontract family members", x7_answer2) |
+                                           str_detect("Subcontract family members", x7_answer3) |
+                                           str_detect("Subcontract family members", x7_answer4), 1, 0))
+
+# Receive informal, ad hoc, help
+data <- data %>% 
+  mutate(dummy_informal_help = ifelse(str_detect("Receive informal, ad hoc, help", x7_answer1) |
+                                      str_detect("Receive informal, ad hoc, help", x7_answer2) |
+                                      str_detect("Receive informal, ad hoc, help", x7_answer3) |
+                                      str_detect("Receive informal, ad hoc, help", x7_answer4), 1, 0))
+
+# Own the business in partnership
+data <- data %>% 
+  mutate(dummy_own_business_together = ifelse(str_detect("Own the business in partnership", x7_answer1) |
+                                              str_detect("Own the business in partnership", x7_answer2) |
+                                              str_detect("Own the business in partnership", x7_answer3) |
+                                              str_detect("Own the business in partnership", x7_answer4), 1, 0))
+
+# Don't work with family members
+data <- data %>% 
+  mutate(dummy_dont_work_family = ifelse(str_detect("I don’t work with family members", x7_answer1) |
+                                         str_detect("I don’t work with family members", x7_answer2) |
+                                         str_detect("I don’t work with family members", x7_answer3) |
+                                         str_detect("I don’t work with family members", x7_answer4), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_limited_company", "dummy_employ_family_directly", "dummy_subcontract_family", "dummy_informal_help", "dummy_own_business_together", "dummy_dont_work_family")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Operate a limited company", 
+               "Employ family directly", 
+               "Subcontract family members", 
+               "Receive informal help", 
+               "Own the business in partnership", 
+               "Don't work with family")
+
+# Create data frame to produce the table
+summary_table <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 1.7. Ways of working with family when a sole trader or owner of a micro-business",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot #
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = dummy_variable, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 1.7. Distribution of ways to work with family", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+#### 1.08 \| Where are survey participants located in the UK?
+
+Table 1.8 and Figure 1.8 show the distribution of the location of participants. The respondents had the possibility to select multiple options when they apply. Therefore the approach is the same as for the previous question. Note that some respondents answered they are working in England and Scotland for example. In the distribution below, this answer will be split and this installer will be included in the count of active installers in England and active installers in Scotland. These installers are not included in the "UK-wide category."
+
+Examples like this one are very few in the survey:
+
+-   3 installers selected "England" and "Wales"
+
+-   4 installers selected "England" and "Scotland"
+
+-   2 installers selected "England", "Scotland", and "Wales"
+
+```{r}
+# Turn list into character so r can read the different answers
+data$x8_answer1 <- sapply(data$x8_where_is_your_company_located, function(x) as.character(x[1]))
+data$x8_answer2 <- sapply(data$x8_where_is_your_company_located, function(x) as.character(x[2]))
+data$x8_answer3 <- sapply(data$x8_where_is_your_company_located, function(x) as.character(x[3]))
+data$x8_answer4 <- sapply(data$x8_where_is_your_company_located, function(x) as.character(x[4])) # No respondent selected more than 3 options for question 8
+# Check answers using: table(data$answer)
+
+# Create dummy for each possible option
+# England
+data <- data %>% 
+  mutate(dummy_england = ifelse(str_detect(x8_answer1, "England") |
+                                str_detect(x8_answer2, "England") |
+                                str_detect(x8_answer3, "England"), 1, 0)) # 229
+
+# Don't know
+data <- data %>% 
+  mutate(dummy_dont_know = ifelse(str_detect("Don't know", x8_answer1) |
+                                  str_detect("Don't know", x8_answer2) |
+                                  str_detect("Don't know", x8_answer3), 1, 0)) # 1
+
+# I don't work in the UK
+data <- data %>% 
+  mutate(dummy_not_in_uk = ifelse(str_detect("I don't work in the UK", x8_answer1) |
+                                  str_detect("I don't work in the UK", x8_answer2) |
+                                  str_detect("I don't work in the UK", x8_answer3), 1, 0)) # 10
+
+# Northern Ireland
+data <- data %>% 
+  mutate(dummy_northern_ireland = ifelse(str_detect("Northern Ireland", x8_answer1) |
+                                         str_detect("Northern Ireland", x8_answer2) |
+                                         str_detect("Northern Ireland", x8_answer3), 1, 0)) # 1
+
+# Scotland
+data <- data %>% 
+  mutate(dummy_scotland = ifelse(str_detect("Scotland", x8_answer1) |
+                                 str_detect("Scotland", x8_answer2) |
+                                 str_detect("Scotland", x8_answer3), 1, 0)) # 41
+
+# UK-wide business
+data <- data %>% 
+  mutate(dummy_uk_wide = ifelse(str_detect("UK-wide business", x8_answer1) |
+                                str_detect("UK-wide business", x8_answer2) |
+                                str_detect("UK-wide business", x8_answer3), 1, 0)) # 65
+
+# Wales
+data <- data %>% 
+  mutate(dummy_wales = ifelse(str_detect("Wales", x8_answer1) |
+                              str_detect("Wales", x8_answer2) |
+                              str_detect("Wales", x8_answer3), 1, 0)) # 21
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_england", "dummy_scotland", "dummy_wales", "dummy_northern_ireland", "dummy_uk_wide", "dummy_not_in_uk", "dummy_dont_know")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("England", 
+               "Scotland",
+               "Wales",
+               "Northern Ireland",
+               "UK-wide business",
+               "I don't work in the UK", 
+               "Don't know")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 1.8. Distribution of where installers in the survey work",
+      col.names = c("Location", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot #
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("England", "Scotland", "Wales", "Northern Ireland", "UK-wide business", "I don't work in the UK", "Don't know")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 1.8. Distribution of where installers in the survey work", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 240, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+#### 1.09 \| Where are survey participants located regionally?
+
+Table 1.9a and Figure 1.9a show the distribution of where installers work if they declared that their business is based in England.
+
+```{r}
+# In this case, the NA values are for installers who are UK-wide
+# The "Not asked" values are for installers who answered that they are not based in England in the previous question. Therefore, I remove them to produce a clean table and plot.
+
+# Get table
+table <- table(data$x9a_in_which_english_region_is_your_company_located)
+
+# Remove "Not asked" row from table
+table <- table(data$x9a_in_which_english_region_is_your_company_located[data$x9a_in_which_english_region_is_your_company_located != "Not asked"])
+
+# Produce the table
+kable(table, 
+      caption = "Table 1.9a. Distribution of region for installers working in England", 
+      col.names = c("Location", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data[data$x9a_in_which_english_region_is_your_company_located != "Not asked" & !is.na(data$x9a_in_which_english_region_is_your_company_located), ], aes(x = x9a_in_which_english_region_is_your_company_located)) +
+  geom_bar(fill = "blue", na.rm = TRUE) +
+  labs(title = "Table 1.9a. Distribution of region for installers working in England", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+Table and Figure 1.9b does the same for Scotland.
+
+```{r}
+# In this case, the NA values are for installers who are UK-wide
+# The "Not asked" values are for installers who answered that they are not based in Scotland in the previous question. Therefore, I remove them to produce a clean table and plot.
+
+# Select values of interest
+included_values <- c("Central Belt", "Highlands & Islands", "Southern Scotland", "North of Scotland", "Scotland-wide business")
+
+# Produce the table
+table <- as.data.frame(table(factor(data$x9b_in_which_scottish_region_is_your_company_located, levels = included_values)))
+kable(table, 
+      caption = "Table 1.9b. Distribution of region for installers working in Scotland", 
+      col.names = c("Location", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data[data$x9b_in_which_scottish_region_is_your_company_located != "Not asked" & !is.na(data$x9b_in_which_scottish_region_is_your_company_located), ], aes(x = x9b_in_which_scottish_region_is_your_company_located)) +
+  geom_bar(fill = "blue", na.rm = TRUE) +
+  labs(title = "Table 1.9b. Distribution of region for installers working in Scotland", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 25, by = 2)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Table and Figure 1.9c does the same for Wales.
+
+```{r}
+# In this case, the NA values are for installers who are UK-wide
+# The "Not asked" values are for installers who answered that they are not based in Wales in the previous question. Therefore, I remove them to produce a clean table and plot.
+
+# Select values of interest
+included_values <- c("South West Wales", "South East Wales", "North Wales", "Mid Wales", "Wales-wide business")
+
+# Produce the table
+table <- as.data.frame(table(factor(data$x9c_in_which_welsh_region_is_your_company_located, levels = included_values)))
+kable(table, 
+      caption = "Table 1.9c. Distribution of region for installers working in Wales", 
+      col.names = c("Location", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+
+```
+
+```{r}
+ggplot(data[data$x9c_in_which_welsh_region_is_your_company_located != "Not asked" & !is.na(data$x9c_in_which_welsh_region_is_your_company_located), ], aes(x = x9c_in_which_welsh_region_is_your_company_located)) +
+  geom_bar(fill = "blue", na.rm = TRUE) +
+  labs(title = "Table 1.9c. Distribution of region for installers working in Wales", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Lastly, we do not provide a distribution for Northern Ireland because only one respondent declared being based exclusively in Northern Ireland. When asked where in Northern Ireland, this installer answered Northern Ireland-wide business.
+
+#### 1.10 \| How far do survey participants travel for jobs?
+
+The tables and figures below provide the distribution for: - All respondents (Table 10a) - Breakdown for each installer type, using the “employment_type” - Company owners and sole traders only (excludes contractors and employees), merging the “sole trader” and “company owner” categories from “employment_type” - Employees and contractors only (excludes sole traders and contractors), merging the “Contractor” and “Employee” categories from “employment_type”
+
+Table 1.10a and Figure 1.10a show the overall distribution of the distance traveled for work for all types of installers.
+
+```{r}
+# Table for all respondents
+table_q10a <- table(data$distance_travelled_for_work_collapsed)
+kable(table_q10a, 
+      caption = "Table 1.10a. Distance travelled for jobs (all)", 
+      col.names = c("Distance", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Plot for all respondents
+ggplot(data, aes(x = distance_travelled_for_work_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 1.10a. Distance travelled for jobs (all)",
+       x = "",
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+```
+
+Next, Table 1.10b and Figure 1.10b show the distribution by employment type.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table_q10b <- xtabs(~ employment_type + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10b)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.10b. Distance travelled for jobs by employment type", # there are 10 NA's for this question
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table_q10b <- xtabs(~ employment_type + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10b)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create a ggplot bar plot
+library(wesanderson)
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.10b. Distribution of distances travelled for jobs by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative graph
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 1.10b. Distribution of distances travelled for jobs by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1")) +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+```
+
+Table 1.10c and Figure 1.10c provide the distribution for a binary classification of employment type, where employees and contractors are merged into a single category and sole traders and company owners are included together in a second category.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table_q10c <- xtabs(~ dummy_employment_type + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10c)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.10c. Distance travelled for jobs by employment type, binary", # there are NA's for this question
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table_q10c <- xtabs(~ dummy_employment_type + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10c)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create a ggplot bar plot
+library(wesanderson)
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.10c. Distribution of distances travelled for jobs by employment type, binary",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative graph
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 1.10c. Distribution of distances travelled for jobs by employment type, binary",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1")) +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+```
+
+Finally, Tables and Figures 1.10d and 1.10e show the distribution for alternative classifications of employment.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table_q10d <- xtabs(~ employment_type_soletrader_owner_merged + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10d)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.10d. Distance travelled for jobs by employment type, version 2", # there are 10 NA's for this question
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table_q10d <- xtabs(~ employment_type_soletrader_owner_merged + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10d)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.10d. Distribution of distances travelled for jobs by employment type, version 2",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative graph
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 1.10d. Distribution of distances travelled for jobs by employment type, version 2",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1")) +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+```
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table_q10e <- xtabs(~ employment_type_employee_contractor_merged + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10e)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.10e. Distance travelled for jobs by employment type, version 3", # there are 10 NA's for this question
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table_q10e <- xtabs(~ employment_type_employee_contractor_merged + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table_q10e)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Create a ggplot bar plot
+library(wesanderson)
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.10e. Distribution of distances travelled for jobs by employment type, version 3",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative graph
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 1.10e. Distribution of distances travelled for jobs by employment type, version 3",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1")) +
+  scale_y_continuous(breaks = seq(0, 150, by = 20))
+
+```
+
+#### 1.11 \| How does the distance that survey participants travel for jobs differ depending on the size of company they work for or own?
+
+We now look at the distribution of the distance travelled for job by company size. Tables and Figures 1.11a provide the distribution for the installers who are business owners (including sole traders).
+
+```{r}
+# Version 1 of collapsed categories
+# Filtered values condition
+filter_condition_1 <- c("Sole trader", "Small", "Medium", "Large")
+filter_condition_2 <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create a new variable based on filtered values for company size
+data <- data %>%
+  mutate(size_company_owned_collapsed_1_bis = ifelse(size_company_owned_collapsed_1 %in% filter_condition_1, size_company_owned_collapsed_1, NA))
+data$size_company_owned_collapsed_1_bis <- as.factor(data$size_company_owned_collapsed_1_bis)
+data <- data %>%
+  mutate(size_company_owned_collapsed_1_bis = recode(size_company_owned_collapsed_1_bis, 
+                               "1" = "Sole trader",
+                               "2" = "Small",
+                               "3" = "Medium",
+                               "4" = "Large"))
+
+# Same operation for distance travelled
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed_bis = ifelse(distance_travelled_for_work_collapsed %in% filter_condition_2, distance_travelled_for_work_collapsed, NA))
+data$distance_travelled_for_work_collapsed_bis <- as.factor(data$distance_travelled_for_work_collapsed_bis)
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed_bis = recode(distance_travelled_for_work_collapsed_bis, 
+                               "1" = "Less than 25 miles", 
+                               "2" = "25-50 miles",
+                               "3" = "50-100 miles", 
+                               "4" = "Over 100 miles"))
+
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_owned_collapsed_1_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.11a. Distance travelled for jobs by company size owned, version 1",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Version 2 of collapsed categories
+# Filtered values condition
+filter_condition_1 <- c("Sole trader", "Small", "Medium and large")
+
+# Create a new variable based on filtered values for company size
+data <- data %>%
+  mutate(size_company_owned_collapsed_2_bis = ifelse(size_company_owned_collapsed_2 %in% filter_condition_1, size_company_owned_collapsed_2, NA))
+data$size_company_owned_collapsed_2_bis <- as.factor(data$size_company_owned_collapsed_2_bis)
+data <- data %>%
+  mutate(size_company_owned_collapsed_2_bis = recode(size_company_owned_collapsed_2_bis, 
+                               "1" = "Sole trader",
+                               "2" = "Small",
+                               "3" = "Medium and large"))
+
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_owned_collapsed_2_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.11a. Distance travelled for jobs by company size owned, version 2",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Plot for version 1
+# Table for breakdown by company size
+table <- xtabs(~ size_company_owned_collapsed_1_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$company_size <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -company_size)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = company_size)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.11a. Distribution of distances travelled for jobs by company size (owners), version 1",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Plot for version 2
+# Table for breakdown by company size
+table <- xtabs(~ size_company_owned_collapsed_2_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$company_size <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -company_size)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = company_size)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.11a. Distribution of distances travelled for jobs by company size (owners), version 2",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Tables and Figures 1.11b provide the distribution for the installers who are employees in a company.
+
+```{r}
+# Version 1 of collapsed categories
+# Filtered values condition
+filter_condition_1 <- c("Sole trader", "Small", "Medium", "Large")
+filter_condition_2 <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create a new variable based on filtered values for company size
+data <- data %>%
+  mutate(size_company_owned_collapsed_1_bis = ifelse(size_company_owned_collapsed_1 %in% filter_condition_1, size_company_owned_collapsed_1, NA))
+data$size_company_owned_collapsed_1_bis <- as.factor(data$size_company_owned_collapsed_1_bis)
+data <- data %>%
+  mutate(size_company_owned_collapsed_1_bis = recode(size_company_owned_collapsed_1_bis, 
+                               "1" = "Sole trader",
+                               "2" = "Small",
+                               "3" = "Medium",
+                               "4" = "Large"))
+
+# Same operation for distance travelled
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed_bis = ifelse(distance_travelled_for_work_collapsed %in% filter_condition_2, distance_travelled_for_work_collapsed, NA))
+data$distance_travelled_for_work_collapsed_bis <- as.factor(data$distance_travelled_for_work_collapsed_bis)
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed_bis = recode(distance_travelled_for_work_collapsed_bis, 
+                               "1" = "Less than 25 miles", 
+                               "2" = "25-50 miles",
+                               "3" = "50-100 miles", 
+                               "4" = "Over 100 miles"))
+
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_owned_collapsed_1_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.11b. Distance travelled for jobs by company size owned, version 1",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Version 2 of collapsed categories
+# Filtered values condition
+filter_condition_1 <- c("5 or fewer", "6-25", "26-100", "Over 100", "Don't know")
+
+# Create a new variable based on filtered values for company size
+data <- data %>%
+  mutate(size_company_employee_work_1_bis = ifelse(size_company_employee_work_1 %in% filter_condition_1, size_company_employee_work_1, NA))
+data$size_company_employee_work_1_bis <- as.factor(data$size_company_employee_work_1_bis)
+data <- data %>%
+  mutate(size_company_employee_work_1_bis = recode(size_company_employee_work_1_bis, 
+                               "1" = "5 or fewer", 
+                               "2" = "6-25", 
+                               "3" = "26-100", 
+                               "4" = "Over 100", 
+                               "6" = "Don't know"))
+
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_employee_work_1_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.11b. Distance travelled for jobs by company size employees work work, version 1",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Version 2 of collapsed categories
+# Filtered values condition
+filter_condition_1 <- c("25 or fewer","Over 25", "Don't know")
+
+# Create a new variable based on filtered values for company size
+data <- data %>%
+  mutate(size_company_employee_work_2_bis = ifelse(size_company_employee_work_2 %in% filter_condition_1, size_company_employee_work_2, NA))
+data$size_company_employee_work_2_bis <- as.factor(data$size_company_employee_work_2_bis)
+data <- data %>%
+  mutate(size_company_employee_work_2_bis = recode(size_company_employee_work_2_bis, 
+                               "1" = "25 or fewer",
+                               "2" = "Over 25", 
+                               "4" = "Don't know"))
+
+# Table for breakdown by employment type 
+table <- xtabs(~ size_company_employee_work_2_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.11b. Distance travelled for jobs by company size employees work work, version 2",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Plot for version 1
+# Table for breakdown by company size
+table <- xtabs(~ size_company_employee_work_1_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$company_size <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -company_size)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Define the order of the company size labels
+order_labels_2 <- c("5 or fewer", "6-25", "26-100", "Over 100", "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = factor(company_size, levels = order_labels_2))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.11b. Distribution of distances travelled for jobs by company size (employees), version 1",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1")) +
+  scale_y_continuous(breaks = seq(0, 30, by = 5))
+```
+
+```{r}
+# Plot for version 2
+# Table for breakdown by company size
+table <- xtabs(~ size_company_employee_work_2_bis + distance_travelled_for_work_collapsed_bis, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$company_size <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", -company_size)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Define the order of the company size labels
+order_labels_2 <- c("25 or fewer", "Over 25", "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = factor(company_size, levels = order_labels_2))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 1.11b. Distribution of distances travelled for jobs by company size (employees), version 2",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1")) +
+  scale_y_continuous(breaks = seq(0, 30, by = 5))
+```
+
+#### 1.12 \| How does the distance that survey participants travel for jobs differ depending on the regions they work in?
+
+Table and Figure 1.12a show the distribution of the average distance travelled for jobs by English regions.
+
+```{r}
+# Table for breakdown by region
+table <- xtabs(~ x9a_in_which_english_region_is_your_company_located + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.12a. Distance travelled for jobs by English regions",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Table for breakdown by company size
+table <- xtabs(~ x9a_in_which_english_region_is_your_company_located + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Add employment_type as a column
+table_df$region <- rownames(table_df)
+
+# Define the order of the x-axis labels
+order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = `Distance Travelled`, value = "Frequency", -region)
+
+# Create table
+my_palette <- brewer.pal(n = num_colors, name = "Spectral")
+ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = region)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 1.12a. Distance travelled for jobs by English regions",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 12)) +
+  scale_fill_manual(values = my_palette) +
+  scale_y_continuous(breaks = seq(0, 120, by = 10))
+```
+
+Table 1.12b shows the distribution of the average distance travelled for jobs by Scottish regions.
+
+```{r}
+# Table for breakdown by region
+table <- xtabs(~ x9b_in_which_scottish_region_is_your_company_located + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.12b. Distance travelled for jobs by Scottish regions",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+Lastly, Table 1.12c shows the distribution of the average distance travelled for jobs by Welsh regions.
+
+```{r}
+# Table for breakdown by region
+table <- xtabs(~ x9c_in_which_welsh_region_is_your_company_located + distance_travelled_for_work_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 1.12c. Distance travelled for jobs by Welsh regions",
+      col.names = c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+We do not provide a distribution for Northern Ireland since only one respondents declared being based in Northern Ireland.
+
+#### 1.13 \| What aspects of heat pump business work do survey participants do?
+
+We now turn to the distribution of the type of heat pump work that respondents of the survey do. Similarly to some of the previous questions, respondents were asked to select all the options that apply. As a result, for the analysis, we provide the distribution of each possible options, keeping in mind that as respondents could select multiple options, the total count may be smaller or larger than the number of respondents in the survey. Table and Figure 1.13a show the distribution for sole traders and company owners.
+
+```{r}
+# Turn list into character so r can read the different answers
+data$x11a_answer1 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[1]))
+data$x11a_answer2 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[2]))
+data$x11a_answer3 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[3]))
+data$x11a_answer4 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[4])) 
+data$x11a_answer5 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[5])) 
+data$x11a_answer6 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[6])) 
+data$x11a_answer7 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[7])) 
+data$x11a_answer8 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[8])) 
+data$x11a_answer9 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[9]))
+data$x11a_answer10 <- sapply(data$x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply, function(x) as.character(x[10])) # No respondent selected more than 9 options for question 11a (there were 9 options possible)
+# Check answers using: table(data$answer)
+
+# Create dummy for each possible option
+# Installation of heat pump system (including heat pump unit, pipes, emitters)
+data <- data %>% 
+  mutate(dummy_install_hp = ifelse(str_detect(x11a_answer1, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer2, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer3, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer4, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer5, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer6, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer7, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer8, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11a_answer9, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")), 1, 0))
+
+# Heat pump servicing and maintenance
+data <- data %>% 
+  mutate(dummy_servicing_maintenance = ifelse(str_detect(x11a_answer1, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer2, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer3, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer4, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer5, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer6, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer7, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer8, "Heat pump servicing and maintenance") |
+                                              str_detect(x11a_answer9, "Heat pump servicing and maintenance"), 1, 0))
+
+# Heat pump commissioning
+data <- data %>% 
+  mutate(dummy_commissioning = ifelse(str_detect(x11a_answer1, "Heat pump commissioning") |
+                                      str_detect(x11a_answer2, "Heat pump commissioning") |
+                                      str_detect(x11a_answer3, "Heat pump commissioning") |
+                                      str_detect(x11a_answer4, "Heat pump commissioning") |
+                                      str_detect(x11a_answer5, "Heat pump commissioning") |
+                                      str_detect(x11a_answer6, "Heat pump commissioning") |
+                                      str_detect(x11a_answer7, "Heat pump commissioning") |
+                                      str_detect(x11a_answer8, "Heat pump commissioning") |
+                                      str_detect(x11a_answer9, "Heat pump commissioning"), 1, 0))
+
+# Heat pump system survey - on site
+data <- data %>% 
+  mutate(dummy_system_survey = ifelse(str_detect(x11a_answer1, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer2, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer3, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer4, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer5, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer6, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer7, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer8, "Heat pump system survey - on site") |
+                                      str_detect(x11a_answer9, "Heat pump system survey - on site"), 1, 0))
+
+# Heat pump system design - office based
+data <- data %>% 
+  mutate(dummy_system_design = ifelse(str_detect(x11a_answer1, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer2, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer3, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer4, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer5, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer6, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer7, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer8, "Heat pump system design - office based") |
+                                      str_detect(x11a_answer9, "Heat pump system design - office based"), 1, 0))
+
+# Ordering materials and supplies, and monitoring stock levels
+data <- data %>% 
+  mutate(dummy_ordering_supply = ifelse(str_detect(x11a_answer1, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer2, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer3, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer4, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer5, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer6, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer7, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer8, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11a_answer9, "Ordering materials and supplies, and monitoring stock levels"), 1, 0))
+
+# Sales/customer relations
+data <- data %>% 
+  mutate(dummy_sales = ifelse(str_detect(x11a_answer1, "Sales/customer relations") |
+                              str_detect(x11a_answer2, "Sales/customer relations") |
+                              str_detect(x11a_answer3, "Sales/customer relations") |
+                              str_detect(x11a_answer4, "Sales/customer relations") |
+                              str_detect(x11a_answer5, "Sales/customer relations") |
+                              str_detect(x11a_answer6, "Sales/customer relations") |
+                              str_detect(x11a_answer7, "Sales/customer relations") |
+                              str_detect(x11a_answer8, "Sales/customer relations") |
+                              str_detect(x11a_answer9, "Sales/customer relations"), 1, 0))
+
+# Business management (eg. recruitment, planning future of business and strategy)
+data <- data %>% 
+  mutate(dummy_business_managment = ifelse(str_detect(x11a_answer1, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer2, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer3, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer4, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer5, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer6, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer7, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer8, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11a_answer9, fixed("Business management (eg. recruitment, planning future of business and strategy)")), 1, 0))
+
+# Business administration (eg. finances, paperwork, reporting)
+data <- data %>% 
+  mutate(dummy_business_admin = ifelse(str_detect(x11a_answer1, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer2, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer3, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer4, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer5, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer6, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer7, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer8, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11a_answer9, fixed("Business administration (eg. finances, paperwork, reporting)")), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_install_hp", "dummy_servicing_maintenance", "dummy_commissioning", "dummy_system_survey", "dummy_system_design", "dummy_ordering_supply", "dummy_sales", "dummy_business_managment", "dummy_business_admin")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Installation of heat pump system", 
+               "Heat pump servicing and maintenance",
+               "Heat pump commissioning",
+               "Heat pump system survey - on site",
+               "Heat pump system design - office based",
+               "Ordering materials and supplies, and monitoring stock levels", 
+               "Sales/customer relations",
+               "Business management",
+               "Business administration")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 1.13a. Distribution of heat pump related work for sole traders and company owners",
+      col.names = c("Type of work", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot #
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Installation of heat pump system", 
+               "Heat pump servicing and maintenance",
+               "Heat pump commissioning",
+               "Heat pump system survey - on site",
+               "Heat pump system design - office based",
+               "Ordering materials and supplies, and monitoring stock levels", 
+               "Sales/customer relations",
+               "Business management",
+               "Business administration")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 1.13a. Distribution of heat pump related work for sole traders and company owners", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 180, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 8))
+```
+
+Table and Figure 1.13b provide the distribution of heat pump related work for contractors and freelancers
+
+```{r}
+# Turn list into character so r can read the different answers
+data$x11b_answer1 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[1]))
+data$x11b_answer2 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[2]))
+data$x11b_answer3 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[3]))
+data$x11b_answer4 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[4])) 
+data$x11b_answer5 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[5])) 
+data$x11b_answer6 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[6])) 
+data$x11b_answer7 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[7])) 
+data$x11b_answer8 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[8])) 
+data$x11b_answer9 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[9]))
+data$x11b_answer10 <- sapply(data$x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply, function(x) as.character(x[10])) # No respondent selected more than 9 options for question 11a (there were 9 options possible)
+# Check answers using: table(data$answer)
+
+# Create dummy for each possible option
+# Installation of heat pump system (including heat pump unit, pipes, emitters)
+data <- data %>% 
+  mutate(dummy_install_hp = ifelse(str_detect(x11b_answer1, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer2, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer3, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer4, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer5, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer6, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer7, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer8, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11b_answer9, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")), 1, 0))
+
+# Heat pump servicing and maintenance
+data <- data %>% 
+  mutate(dummy_servicing_maintenance = ifelse(str_detect(x11b_answer1, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer2, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer3, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer4, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer5, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer6, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer7, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer8, "Heat pump servicing and maintenance") |
+                                              str_detect(x11b_answer9, "Heat pump servicing and maintenance"), 1, 0))
+
+# Heat pump commissioning
+data <- data %>% 
+  mutate(dummy_commissioning = ifelse(str_detect(x11b_answer1, "Heat pump commissioning") |
+                                      str_detect(x11b_answer2, "Heat pump commissioning") |
+                                      str_detect(x11b_answer3, "Heat pump commissioning") |
+                                      str_detect(x11b_answer4, "Heat pump commissioning") |
+                                      str_detect(x11b_answer5, "Heat pump commissioning") |
+                                      str_detect(x11b_answer6, "Heat pump commissioning") |
+                                      str_detect(x11b_answer7, "Heat pump commissioning") |
+                                      str_detect(x11b_answer8, "Heat pump commissioning") |
+                                      str_detect(x11b_answer9, "Heat pump commissioning"), 1, 0))
+
+# Heat pump system survey - on site
+data <- data %>% 
+  mutate(dummy_system_survey = ifelse(str_detect(x11b_answer1, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer2, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer3, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer4, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer5, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer6, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer7, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer8, "Heat pump system survey - on site") |
+                                      str_detect(x11b_answer9, "Heat pump system survey - on site"), 1, 0))
+
+# Heat pump system design - office based
+data <- data %>% 
+  mutate(dummy_system_design = ifelse(str_detect(x11b_answer1, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer2, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer3, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer4, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer5, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer6, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer7, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer8, "Heat pump system design - office based") |
+                                      str_detect(x11b_answer9, "Heat pump system design - office based"), 1, 0))
+
+# Ordering materials and supplies, and monitoring stock levels
+data <- data %>% 
+  mutate(dummy_ordering_supply = ifelse(str_detect(x11b_answer1, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer2, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer3, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer4, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer5, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer6, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer7, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer8, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11b_answer9, "Ordering materials and supplies, and monitoring stock levels"), 1, 0))
+
+# Sales/customer relations
+data <- data %>% 
+  mutate(dummy_sales = ifelse(str_detect(x11b_answer1, "Sales/customer relations") |
+                              str_detect(x11b_answer2, "Sales/customer relations") |
+                              str_detect(x11b_answer3, "Sales/customer relations") |
+                              str_detect(x11b_answer4, "Sales/customer relations") |
+                              str_detect(x11b_answer5, "Sales/customer relations") |
+                              str_detect(x11b_answer6, "Sales/customer relations") |
+                              str_detect(x11b_answer7, "Sales/customer relations") |
+                              str_detect(x11b_answer8, "Sales/customer relations") |
+                              str_detect(x11b_answer9, "Sales/customer relations"), 1, 0))
+
+# Business management (eg. recruitment, planning future of business and strategy)
+data <- data %>% 
+  mutate(dummy_business_managment = ifelse(str_detect(x11b_answer1, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer2, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer3, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer4, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer5, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer6, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer7, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer8, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11b_answer9, fixed("Business management (eg. recruitment, planning future of business and strategy)")), 1, 0))
+
+# Business administration (eg. finances, paperwork, reporting)
+data <- data %>% 
+  mutate(dummy_business_admin = ifelse(str_detect(x11b_answer1, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer2, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer3, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer4, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer5, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer6, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer7, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer8, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11b_answer9, fixed("Business administration (eg. finances, paperwork, reporting)")), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_install_hp", "dummy_servicing_maintenance", "dummy_commissioning", "dummy_system_survey", "dummy_system_design", "dummy_ordering_supply", "dummy_sales", "dummy_business_managment", "dummy_business_admin")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Installation of heat pump system", 
+               "Heat pump servicing and maintenance",
+               "Heat pump commissioning",
+               "Heat pump system survey - on site",
+               "Heat pump system design - office based",
+               "Ordering materials and supplies, and monitoring stock levels", 
+               "Sales/customer relations",
+               "Business management",
+               "Business administration")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 1.13b. Distribution of heat pump related work for contractors and freelancers",
+      col.names = c("Type of work", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot based on table above #
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Installation of heat pump system", 
+               "Heat pump servicing and maintenance",
+               "Heat pump commissioning",
+               "Heat pump system survey - on site",
+               "Heat pump system design - office based",
+               "Ordering materials and supplies, and monitoring stock levels", 
+               "Sales/customer relations",
+               "Business management",
+               "Business administration")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 1.13b. Distribution of heat pump related work for contractors and freelancers", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 25, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 8))
+```
+
+Table and Figure 1.13c provide the distribution of heat pump related work for employees of companies
+
+```{r}
+# Turn list into character so r can read the different answers
+data$x11c_answer1 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[1]))
+data$x11c_answer2 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[2]))
+data$x11c_answer3 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[3]))
+data$x11c_answer4 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[4])) 
+data$x11c_answer5 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[5])) 
+data$x11c_answer6 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[6])) 
+data$x11c_answer7 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[7])) 
+data$x11c_answer8 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[8])) 
+data$x11c_answer9 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[9]))
+data$x11c_answer10 <- sapply(data$x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply, function(x) as.character(x[10])) # No respondent selected more than 9 options for question 11a (there were 9 options possible)
+# Check answers using: table(data$answer)
+
+# Create dummy for each possible option
+# Installation of heat pump system (including heat pump unit, pipes, emitters)
+data <- data %>% 
+  mutate(dummy_install_hp = ifelse(str_detect(x11c_answer1, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer2, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer3, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer4, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer5, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer6, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer7, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer8, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")) |
+                                   str_detect(x11c_answer9, fixed("Installation of heat pump system (including heat pump unit, pipes, emitters)")), 1, 0))
+
+# Heat pump servicing and maintenance
+data <- data %>% 
+  mutate(dummy_servicing_maintenance = ifelse(str_detect(x11c_answer1, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer2, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer3, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer4, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer5, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer6, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer7, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer8, "Heat pump servicing and maintenance") |
+                                              str_detect(x11c_answer9, "Heat pump servicing and maintenance"), 1, 0))
+
+# Heat pump commissioning
+data <- data %>% 
+  mutate(dummy_commissioning = ifelse(str_detect(x11c_answer1, "Heat pump commissioning") |
+                                      str_detect(x11c_answer2, "Heat pump commissioning") |
+                                      str_detect(x11c_answer3, "Heat pump commissioning") |
+                                      str_detect(x11c_answer4, "Heat pump commissioning") |
+                                      str_detect(x11c_answer5, "Heat pump commissioning") |
+                                      str_detect(x11c_answer6, "Heat pump commissioning") |
+                                      str_detect(x11c_answer7, "Heat pump commissioning") |
+                                      str_detect(x11c_answer8, "Heat pump commissioning") |
+                                      str_detect(x11c_answer9, "Heat pump commissioning"), 1, 0))
+
+# Heat pump system survey - on site
+data <- data %>% 
+  mutate(dummy_system_survey = ifelse(str_detect(x11c_answer1, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer2, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer3, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer4, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer5, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer6, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer7, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer8, "Heat pump system survey - on site") |
+                                      str_detect(x11c_answer9, "Heat pump system survey - on site"), 1, 0))
+
+# Heat pump system design - office based
+data <- data %>% 
+  mutate(dummy_system_design = ifelse(str_detect(x11c_answer1, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer2, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer3, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer4, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer5, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer6, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer7, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer8, "Heat pump system design - office based") |
+                                      str_detect(x11c_answer9, "Heat pump system design - office based"), 1, 0))
+
+# Ordering materials and supplies, and monitoring stock levels
+data <- data %>% 
+  mutate(dummy_ordering_supply = ifelse(str_detect(x11c_answer1, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer2, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer3, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer4, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer5, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer6, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer7, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer8, "Ordering materials and supplies, and monitoring stock levels") |
+                                        str_detect(x11c_answer9, "Ordering materials and supplies, and monitoring stock levels"), 1, 0))
+
+# Sales/customer relations
+data <- data %>% 
+  mutate(dummy_sales = ifelse(str_detect(x11c_answer1, "Sales/customer relations") |
+                              str_detect(x11c_answer2, "Sales/customer relations") |
+                              str_detect(x11c_answer3, "Sales/customer relations") |
+                              str_detect(x11c_answer4, "Sales/customer relations") |
+                              str_detect(x11c_answer5, "Sales/customer relations") |
+                              str_detect(x11c_answer6, "Sales/customer relations") |
+                              str_detect(x11c_answer7, "Sales/customer relations") |
+                              str_detect(x11c_answer8, "Sales/customer relations") |
+                              str_detect(x11c_answer9, "Sales/customer relations"), 1, 0))
+
+# Business management (eg. recruitment, planning future of business and strategy)
+data <- data %>% 
+  mutate(dummy_business_managment = ifelse(str_detect(x11c_answer1, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer2, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer3, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer4, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer5, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer6, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer7, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer8, fixed("Business management (eg. recruitment, planning future of business and strategy)")) |
+                                           str_detect(x11c_answer9, fixed("Business management (eg. recruitment, planning future of business and strategy)")), 1, 0))
+
+# Business administration (eg. finances, paperwork, reporting)
+data <- data %>% 
+  mutate(dummy_business_admin = ifelse(str_detect(x11c_answer1, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer2, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer3, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer4, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer5, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer6, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer7, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer8, fixed("Business administration (eg. finances, paperwork, reporting)")) |
+                                       str_detect(x11c_answer9, fixed("Business administration (eg. finances, paperwork, reporting)")), 1, 0))
+
+# Merge the different dummy variables into a single categorical variable
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_install_hp", "dummy_servicing_maintenance", "dummy_commissioning", "dummy_system_survey", "dummy_system_design", "dummy_ordering_supply", "dummy_sales", "dummy_business_managment", "dummy_business_admin")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Installation of heat pump system", 
+               "Heat pump servicing and maintenance",
+               "Heat pump commissioning",
+               "Heat pump system survey - on site",
+               "Heat pump system design - office based",
+               "Ordering materials and supplies, and monitoring stock levels", 
+               "Sales/customer relations",
+               "Business management",
+               "Business administration")
+             
+# Create data frame to produce the table
+summary_table <- data.frame(dummy_variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 1.13c. Distribution of heat pump related work for employees",
+      col.names = c("Type of work", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot based on table above #
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Installation of heat pump system", 
+               "Heat pump servicing and maintenance",
+               "Heat pump commissioning",
+               "Heat pump system survey - on site",
+               "Heat pump system design - office based",
+               "Ordering materials and supplies, and monitoring stock levels", 
+               "Sales/customer relations",
+               "Business management",
+               "Business administration")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 1.13c. Distribution of heat pump related work for employees", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 8))
+```
+
+See Section 2 for the next part of the installer survey analysis.
