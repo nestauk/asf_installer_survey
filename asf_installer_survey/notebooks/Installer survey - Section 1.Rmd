@@ -33,11 +33,14 @@ library(khroma)
 library(RColorBrewer)
 
 ##### Load dataset
-file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
+#file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer #survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
+file_path <- "/mnt/g/Shared drives/A Sustainable Future/1. Reducing household emissions/2. Projects Research Work/36. Installer survey/05 survey data/20240201_Installer_survey_clean_data_anonymised.parquet"
 Installer_survey_data <- arrow::read_parquet(file_path)
 
 # Duplicate dataset to be sure not to mess it up
-data_full <- Installer_survey_data
+#data_full <- Installer_survey_data
+# QA: This copies the reference, not the object, instead use:
+data_full <- tibble::tibble(Installer_survey_data)
 
 # Link to the Miro board
 # https://miro.com/app/board/uXjVNWK_xBg=/
@@ -46,8 +49,10 @@ data_full <- Installer_survey_data
 # https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.voghu12g248q
 
 ##### Filter out partial responses
-data <- data_full %>%
-  filter(`0e. Analytical Sample` == "TRUE")  
+#data <- data_full %>%
+#  filter(`0e. Analytical Sample` == "TRUE")
+# QA: Because `0e. Analytical Sample` is already a boolean, testing for equivalence is redundant.
+data <- data_full |> filter(`0e. Analytical Sample`)
 
 ##### Change names of variables to make things easier
 data <- clean_names(data)
@@ -83,6 +88,7 @@ data <- data %>%
 data$employment_type_employee_contractor_merged <- as.factor(data$employment_type_employee_contractor_merged)
 
 # Create dummy variable for employment type
+# QA: I'm not sure what this is for, but its not a dummy variable
 data <- data %>%
   mutate(dummy_employment_type = case_when(employment_type == "Employee" ~ "Employee or contractor/freelancer",
                                            employment_type == "Contractor or freelancer" ~ "Employee or contractor/freelancer",
@@ -566,6 +572,38 @@ kable(summary_table,
                 html_font = "Arial") %>%
   row_spec(0, bold = T)
 ```
+```{r}
+# QA: The above can be achieved with this function I created earlier.
+
+is_in <- function(row, value){value %in% row}
+
+explode_list_columns <- function(tibble, colname){
+    # Get binary tibble from list column
+    unique_items <- tibble[[colname]] |> unlist() |> unique()
+    
+    exploded_list <- list()
+    
+    item_num =1
+    for (x in unique_items) {
+        exploded_list[item_num] <- list(lapply(tibble[[colname]], is_in, x))
+        item_num <- item_num +1
+    }
+    exploded_tibble <- suppressMessages(dplyr::as_tibble(exploded_list, .name_repair='universal'))
+    names(exploded_tibble) <- unique_items
+    exploded_tibble <- dplyr::mutate_all(exploded_tibble, as.logical)
+    return(exploded_tibble)
+}
+
+subset_dummy_example <- explode_list_columns(data, "x7_do_you_work_with_family_members_in_any_of_the_following_ways_select_all_that_apply")
+
+# Summarise the distribution
+summary_table_example <- subset_dummy_example %>%
+  summarise_all(sum)
+
+# styling etc.
+
+```
+
 
 ```{r}
 # Create plot #
@@ -682,6 +720,16 @@ kable(summary_table,
                 full_width = F,
                 html_font = "Arial") %>%
   row_spec(0, bold = T)
+```
+```{r}
+# QA: easily done using a functional approach.
+
+loc_data <- explode_list_columns(data, "x8_where_is_your_company_located")
+
+loc_data <- loc_data |> summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Styling etc.
+
 ```
 
 ```{r}
@@ -955,7 +1003,7 @@ table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", 
 order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
 
 # Create a ggplot bar plot
-library(wesanderson)
+#library(wesanderson)
 ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(title = "Figure 1.10c. Distribution of distances travelled for jobs by employment type, binary",
@@ -1094,7 +1142,7 @@ table_long <- gather(table_df, key = "Distance Travelled", value = "Frequency", 
 order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100 miles", "Don't know")
 
 # Create a ggplot bar plot
-library(wesanderson)
+#library(wesanderson)
 ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(title = "Figure 1.10e. Distribution of distances travelled for jobs by employment type, version 3",
@@ -1496,6 +1544,8 @@ order_labels <- c("Less than 25 miles", "25-50 miles", "50-100 miles", "Over 100
 table_long <- gather(table_df, key = `Distance Travelled`, value = "Frequency", -region)
 
 # Create table
+# QA: you need to define a num colours variable.
+num_colors <- rownames(table_df) |> length()
 my_palette <- brewer.pal(n = num_colors, name = "Spectral")
 ggplot(table_long, aes(x = factor(`Distance Travelled`, levels = order_labels), y = Frequency, fill = region)) +
   geom_bar(stat = "identity") +
@@ -1719,6 +1769,13 @@ kable(summary_table,
 ```
 
 ```{r}
+# QA: summarise this question.
+aspects_data <- explode_list_columns(data, "x11a_what_aspects_of_the_company_you_own_are_you_involved_with_select_all_that_apply")
+
+aspects_data <- aspects_data |> summarise_all(sum)
+```
+
+```{r}
 # Create plot #
 # Rename variables in the subset for clear display in plot
 subset_dummy <- subset_dummy %>%
@@ -1908,6 +1965,12 @@ kable(summary_table,
 ```
 
 ```{r}
+data_work <- explode_list_columns(data, "x11b_what_type_of_work_do_you_do_when_you_re_contracted_for_a_job_select_all_that_apply")
+
+data_work <- data_work |> summarise_all(sum) 
+```
+
+```{r}
 # Create plot based on table above #
 # Rename variables in the subset for clear display in plot
 subset_dummy <- subset_dummy %>%
@@ -2094,6 +2157,12 @@ kable(summary_table,
                 full_width = F,
                 html_font = "Arial") %>%
   row_spec(0, bold = T)
+```
+
+```{r}
+data_emp_work <- explode_list_columns(data, "x11c_what_type_of_work_do_you_do_for_the_company_you_work_for_select_all_that_apply")
+
+data_emp_work <- data_emp_work |> summarise_all(sum)
 ```
 
 ```{r}
