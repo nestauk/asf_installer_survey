@@ -1,0 +1,2796 @@
+---
+title: "Installer survey - Section 4"
+author: "Benoit Siberdt"
+date: "2024-02-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Heat pump installer survey analysis
+
+## Section 4 - The work installers do (Part III)
+
+### Foreword
+
+As for Section 1, throughout the analysis, we collapsed responses and respondents to the survey into various subcategories to get the most relevant information. This collapsing was done based on the guidelines laid out in the [analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit){target="_blank"}.
+
+You can find the pre-analysis code to run before analysing section 4 of the installer survey below.
+
+```{r}
+##### Load packages
+library(arrow)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(wesanderson)
+library(khroma)
+
+##### Load dataset
+file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
+Installer_survey_data <- arrow::read_parquet(file_path)
+
+# Duplicate dataset to be sure not to mess it up
+data_full <- Installer_survey_data
+
+# Link to the Miro board
+# https://miro.com/app/board/uXjVNWK_xBg=/
+
+# Link to the analysis plan
+# https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.voghu12g248q
+
+##### Filter out partial responses
+data <- data_full %>%
+  filter(`0e. Analytical Sample` == "TRUE")  
+
+##### Change names of variables to make things easier
+data <- clean_names(data)
+
+
+##### Pre-analysis - Collapsed options and new variables
+
+## Create employment_type variables
+data <- data %>%
+  mutate(employment_type = case_when(x5_are_you_responding_to_this_survey_as == "An employee of a firm" ~ "Employee", 
+                                     x5_are_you_responding_to_this_survey_as == "A contractor or freelancer" ~ "Contractor or freelancer",
+                                     x6a_what_size_company_do_you_own == "I’m a sole trader" ~ "Sole trader",
+                                     x6a_what_size_company_do_you_own == "I own a company with 5 or fewer employees" ~ "Company owner", 
+                                     x6a_what_size_company_do_you_own == "I own a company with 6-25 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with 26-100 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with over 100 employees" ~ "Company owner", TRUE ~ "Not asked"))
+data$employment_type <- as.factor(data$employment_type)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_soletrader_owner_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor or freelancer",
+                                                             employment_type == "Employee" ~ "Employee",
+                                                             employment_type == "Sole trader" ~ "Sole trader or company owner",
+                                                             employment_type == "Company owner" ~ "Sole trader or company owner"))
+data$employment_type_soletrader_owner_merged <- as.factor(data$employment_type_soletrader_owner_merged)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_employee_contractor_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Employee" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Sole trader" ~ "Sole trader",
+                                                                employment_type == "Company owner" ~ "Company owner"))
+data$employment_type_employee_contractor_merged <- as.factor(data$employment_type_employee_contractor_merged)
+
+# Create dummy variable for employment type
+data <- data %>%
+  mutate(dummy_employment_type = case_when(employment_type == "Employee" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Contractor or freelancer" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Company owner" ~ "Company owner or sole trader",
+                                           employment_type == "Sole trader" ~ "Company owner or sole trader"))
+data$dummy_employment_type <- as.factor(data$dummy_employment_type)
+
+# Create dummy for contractors and freelancers
+data <- data %>%
+  mutate(dummy_contractors = case_when(employment_type == "Contractor or freelancer" ~ 1, TRUE ~ 0))
+
+# Create dummy for employees
+data <- data %>%
+  mutate(dummy_employees = case_when(employment_type == "Employee" ~ 1, TRUE ~ 0))
+
+# Create dummy for sole traders
+data <- data %>%
+  mutate(dummy_soletraders = case_when(employment_type == "Sole traders" ~ 1, TRUE ~ 0))
+
+# Create dummy for company owner
+data <- data %>%
+  mutate(dummy_company_owner = case_when(employment_type == "Company owner" ~ 1, TRUE ~ 0))
+
+
+##### Participant age
+data <- data %>%
+  mutate(age_collapsed = recode_factor(x1_how_old_are_you,
+                                       "18-24" = "34 and under",
+                                       "25-34" = "34 and under",
+                                       "35-44" = "35-44",
+                                       "45-54" = "45-54",
+                                       "55-64" = "55 and over",
+                                       "65-74" = "55 and over",
+                                       "Over 75" = "55 and over",
+                                       "Prefer not to say" = "Prefer not to say"))
+
+
+##### Length of time in the heat pump sector
+data <- data %>%
+  mutate(length_hp_sector_collapsed = recode_factor(x4_how_long_have_you_been_working_with_heat_pumps,
+                                                    "I don’t work with heat pumps, but plan to do so in the twelve months" = "Don’t work with heat pumps",
+                                                    "I don’t work with heat pumps and have no plans to do so" = "Don’t work with heat pumps",
+                                                    "Don't know" = "Don’t work with heat pumps",
+                                                    "Less than 12 months" = "Under 3 years",
+                                                    "1-3 years" = "Under 3 years",
+                                                    "3-5 years" = "3-5 years",
+                                                    "5-10 years" = "5-10 years",
+                                                    "10-20 years" = "Over 10 years",
+                                                    "Over 20 years" = "Over 10 years"))
+
+
+##### Size of company owned
+# Version 1
+data <- data %>%
+  mutate(size_company_owned_collapsed_1 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium",
+                                                        "I own a company with 26-100 employees" = "Large",
+                                                        "I own a company with over 100 employees" = "Large",
+                                                        "Not asked" = "Not asked"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_owned_collapsed_2 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium and large",
+                                                        "I own a company with 26-100 employees" = "Medium and large",
+                                                        "I own a company with over 100 employees" = "Medium and large",
+                                                        "Not asked" = "Not asked"))
+
+
+##### Size of company employees work for
+# Version 1
+data <- data %>%
+  mutate(size_company_employee_work_1 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "5 or fewer",
+                                                      "I work for a company with 6-25 employees" = "6-25",
+                                                      "I work for a company with 26-100 employees" = "26-100",
+                                                      "I work for a company with over 100 employees" = "Over 100",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_employee_work_2 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "25 or fewer",
+                                                      "I work for a company with 6-25 employees" = "25 or fewer",
+                                                      "I work for a company with 26-100 employees" = "Over 25",
+                                                      "I work for a company with over 100 employees" = "Over 25",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+
+##### Distance travelled for work
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed = recode_factor(x10_how_far_from_your_business_location_would_you_typically_travel_for_jobs_approximately,
+                                                               "Less than 25 miles" = "Less than 25 miles",
+                                                               "25 to 50 miles" = "25-50 miles",
+                                                               "50 to 100 miles" = "50-100 miles",
+                                                               "100 to 200 miles" = "Over 100 miles",
+                                                               "200 to 300 miles" = "Over 100 miles",
+                                                               "More than 300 miles" = "Over 100 miles",
+                                                               "Don't know" = "Don't know"))
+
+## Domestic/commercial work split
+# Company
+data <- data %>%
+  mutate(dom_com_work_plit_12a = recode_factor(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of,
+                                               "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                               "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                               "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                               "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                               "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                               "Not asked" = "Not asked"))
+
+# Individual
+data <- data %>%
+  mutate(dom_com_work_plit_12b = recode_factor(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of,
+                                               "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                               "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                               "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                               "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                               "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                               "Not asked" = "Not asked"))
+
+
+## Intentions for domestic/commercial work split
+# Company
+data <- data %>%
+  mutate(intentions_dom_com_work_split_13a = recode_factor(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
+                                                           "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                                           "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                                           "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                                           "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                                           "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                                           "Not asked" = "Not asked"))
+
+# Individual
+data <- data %>%
+  mutate(intentions_dom_com_work_split_13b = recode_factor(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
+                                                           "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                                           "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                                           "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                                           "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                                           "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                                           "Not asked" = "Not asked"))
+
+
+## Ratio heating system installations that are heat pumps
+# Company
+data <- data %>%
+  mutate(ratio_heating_systems_hp_company_14a = recode_factor(x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on,
+                                                              "Only heat pumps" = "Mostly heat pumps",
+                                                              "Mostly heat pumps, and some other systems" = "Mostly heat pumps",
+                                                              "An equal number of heat pumps and other systems" = "Equal split",
+                                                              "Mostly other systems, and some heat pumps" = "Mostly non-heat pumps",
+                                                              "Almost entirely other systems and the occasional heat pump" = "Mostly non-heat pumps",
+                                                              "My company doesn't install any heat pumps, but plans to do so in the next 12 months" = "Don’t install heat pumps",
+                                                              "My company doesn't install any heat pumps, and has no plans to do so" = "Don’t install heat pumps"))
+
+# Individual
+data <- data %>%
+  mutate(ratio_heating_systems_hp_engineer_14b = recode_factor(x14b_thinking_of_the_heating_systems_you_install_do_you_work_on,
+                                                               "Only heat pumps" = "Mostly heat pumps",
+                                                               "Mostly heat pumps, and some other systems" = "Mostly heat pumps",
+                                                               "An equal number of heat pumps and other systems" = "Equal split",
+                                                               "Mostly other systems, and some heat pumps" = "Mostly non-heat pumps",
+                                                               "Almost entirely other systems, and the occasional heat pump" = "Mostly non-heat pumps",
+                                                               "I don't install any heat pumps, but I plan to do so in the next 12 months" = "Don’t install heat pumps",
+                                                               "I don't install any heat pumps and have no plans to do so" = "Don’t install heat pumps"))
+
+## Questions 30a and 30b
+# Installers were asked if they have done any retrofit or new build (select all that apply format)
+# Some responded only retrofit, other only new build, others both.
+# Those who replied retrofit and new build were asked q33, what is the majority of your installations.
+# To create variable retrofit_newbuild we want to include those who only responded retrofit to q30 and those who responded retrofit to q33.
+
+# Filter the "only retrofit answers"
+# To do this, I find answers which contain "retrofit" which include those who replied retrofit and retrofit, new build.
+# Then I create a new variable with condition 1 = retrofit in new variable and condition 2 = not asked (q33) since those who replied only retrofit to q30 were not asked q33.
+# This way I have a binary variable which takes the value "retrofit" for installers who replied "retrofit" only to q30.
+
+# This follows the guidelines in the pre-analysis plan.
+
+# Separate vector
+data$x30a_answer1 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30a_answer2 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+# Step 1
+data <- data %>% 
+  mutate(dummy_retrofit_q30a = ifelse(str_detect(x30a_answer1, fixed("Retrofit")) |
+                                      str_detect(x30a_answer2, fixed("Retrofit")), 1, 0)) 
+# I have a dummy variable that takes the value 1 if respondents replied retrofit only or retrofit and new build to q30a.
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_owners = case_when(dummy_retrofit_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Retrofit only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value retrofit only for the respondent who only do retrofit work.
+
+# Do the same for new build
+data <- data %>% 
+  mutate(dummy_newbuild_q30a = ifelse(str_detect(x30a_answer1, fixed("New build")) |
+                                      str_detect(x30a_answer2, fixed("New build")), 1, 0))
+# I have a dummy variable that takes the value 1 if respondents replied new build only or retrofit and new build to q30a.
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_owners = case_when(dummy_newbuild_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Newbuild only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value new build only for the respondent who only do new build work.
+
+# Create a summary retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_owners = case_when(retrofit_only_owners == "Retrofit only" ~ "Retrofit only",
+                                              newbuild_only_owners == "Newbuild only" ~ "New build only",
+                                              x30a_answer1 == "Not asked" ~ NA_character_,
+                                              TRUE ~ "Both retrofit and new build"))
+
+## retrofit_newbuild variable for sole traders, employees, and contractors
+# Separate vector
+data$x30b_answer1 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30b_answer2 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+# Step 1
+data <- data %>% 
+  mutate(dummy_retrofit_q30b = ifelse(str_detect(x30b_answer1, fixed("Retrofit")) |
+                                      str_detect(x30b_answer2, fixed("Retrofit")), 1, 0)) 
+# I have a dummy variable that takes the value 1 if respondents replied retrofit only or retrofit and new build to q30b.
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_others = case_when(dummy_retrofit_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Retrofit only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value retrofit only for the respondent who only do retrofit work.
+
+# Do the same for new build
+data <- data %>% 
+  mutate(dummy_newbuild_q30b = ifelse(str_detect(x30b_answer1, fixed("New build")) |
+                                      str_detect(x30b_answer2, fixed("New build")), 1, 0))
+# I have a dummy variable that takes the value 1 if respondents replied new build only or retrofit and new build to q30b.
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_others = case_when(dummy_newbuild_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Newbuild only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value new build only for the respondent who only do new build work.
+
+# Create a summary retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_others = case_when(retrofit_only_others == "Retrofit only" ~ "Retrofit only",
+                                              newbuild_only_others == "Newbuild only" ~ "New build only",
+                                              x30b_answer1 == "Not asked" ~ NA_character_,
+                                              TRUE ~ "Both retrofit and new build"))
+
+# Merge variables for all installers
+data <- data %>% 
+  mutate(retrofit_newbuild_all = coalesce(retrofit_newbuild_owners, retrofit_newbuild_others))
+```
+
+#### 4.01 \| What proportion of survey respondents’ work is domestic or commercial?
+
+Installers were asked if they have done any retrofit and new build heat pump installations over the last 12 months. Respondents could answer "retrofit", "new build" or select both. We therefore need to distinguish between three categories: retrofit only, new build only, and both retrofit and new build. Figure 4.1a shows the distribution for all installers (n=345).
+
+```{r}
+# Plot distribution for all installers
+data_filtered <- data[!is.na(data$retrofit_newbuild_all),]
+ggplot(data_filtered, aes(x = retrofit_newbuild_all)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 4.1a. Distribution of retrofit and new build work (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 210, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.1b show the distribution by employment type: company owners, sole traders, employees and contractors.
+
+```{r}
+### Must run code for figure 4.1a first ###
+# Create plot
+ggplot(data, aes(x = retrofit_newbuild_all, fill = employment_type)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Figure 4.1b. Distribution of retrofit and new build work \nby employment type (all installers)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 210, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  geom_text(stat='count', aes(label=after_stat(count)), position = position_dodge(width = 0.9), vjust=-0.7, size = 3) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.02 \| How does the proportion of survey respondents’ domestic and commercial work vary depending on the size of the company they work for or own?
+
+Figure 4.2a shows the distribution by the size of the company (for company owners and sole traders, n=201).
+
+```{r}
+### Must run code of section 4.1 first ###
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Create plot
+ggplot(subset_question, aes(x = retrofit_newbuild_all, fill = size_company_owned_collapsed_1)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Figure 4.2a. Distribution of retrofit and new build work by \ncompany size (company owners and sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  geom_text(stat='count', aes(label=after_stat(count)), position = position_dodge(width = 0.9), vjust=-0.7, size = 3) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.2b shows the distribution by company size for employees (n=112).
+
+```{r}
+### Must run code of section 4.1 first ###
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type %in% c("Employee"))
+
+# Create plot
+ggplot(subset_question, aes(x = retrofit_newbuild_all, fill = size_company_employee_work_1)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Figure 4.2b.Distribution of retrofit and new build work \nby company size (employees)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 50, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  geom_text(stat='count', aes(label=after_stat(count)), position = position_dodge(width = 0.9), vjust=-0.4, size = 3) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.03 \| For participants that do retrofit work, what type of properties have they done retrofit work in over the last 12 months?
+
+Next we want to know about the types of properties in which installers who do retrofit work. Respondents were presented three choices from which they could select all that apply: individual private homes, social housing, and commercial properties.
+
+Figure 4.3a shows the distribution for company owners (excluding sole traders).
+
+```{r}
+# Separate answers
+data$x31a_answer1 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x31a_answer2 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x31a_answer3 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x31a_answer4 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_owners = ifelse(str_detect(x31a_answer1, fixed("Individual private homes")) |
+                                             str_detect(x31a_answer2, fixed("Individual private homes")) |
+                                             str_detect(x31a_answer3, fixed("Individual private homes")) |
+                                             str_detect(x31a_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_owners = ifelse(str_detect(x31a_answer1, fixed("Social housing")) |
+                                              str_detect(x31a_answer2, fixed("Social housing")) |
+                                              str_detect(x31a_answer3, fixed("Social housing")) |
+                                              str_detect(x31a_answer4, fixed("Social housing")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_owners = ifelse(str_detect(x31a_answer1, fixed("Commercial properties")) |
+                                                     str_detect(x31a_answer2, fixed("Commercial properties")) |
+                                                     str_detect(x31a_answer3, fixed("Commercial properties")) |
+                                                     str_detect(x31a_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_owners = ifelse(str_detect(x31a_answer1, fixed("Other")) |
+                                     str_detect(x31a_answer2, fixed("Other")) |
+                                     str_detect(x31a_answer3, fixed("Other")) |
+                                     str_detect(x31a_answer4, fixed("Other")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_owners, dummy_social_housing_owners, dummy_commercial_properties_owners, dummy_other_owners)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Plot
+ggplot(gather(summary_table), aes(x = reorder(key, -value), y = value)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = value), position = position_dodge(width = 0.9), vjust = -0.7, size = 3) +
+  labs(title = "Figure 4.3a. Distribution of property types for retrofit (company owners)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 40))
+```
+
+Figure 4.3b shows the distribution for all other installers (sole traders, employees and contractors).
+
+```{r}
+# Separate answers
+data$x31b_answer1 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x31b_answer2 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x31b_answer3 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x31b_answer4 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_others = ifelse(str_detect(x31b_answer1, fixed("Individual private homes")) |
+                                             str_detect(x31b_answer2, fixed("Individual private homes")) |
+                                             str_detect(x31b_answer3, fixed("Individual private homes")) |
+                                             str_detect(x31b_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_others = ifelse(str_detect(x31b_answer1, fixed("Social housing")) |
+                                              str_detect(x31b_answer2, fixed("Social housing")) |
+                                              str_detect(x31b_answer3, fixed("Social housing")) |
+                                              str_detect(x31b_answer4, fixed("Social housing")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_others = ifelse(str_detect(x31b_answer1, fixed("Commercial properties")) |
+                                                     str_detect(x31b_answer2, fixed("Commercial properties")) |
+                                                     str_detect(x31b_answer3, fixed("Commercial properties")) |
+                                                     str_detect(x31b_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_others = ifelse(str_detect(x31b_answer1, fixed("Other")) |
+                                     str_detect(x31b_answer2, fixed("Other")) |
+                                     str_detect(x31b_answer3, fixed("Other")) |
+                                     str_detect(x31b_answer4, fixed("Other")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_others, dummy_social_housing_others, dummy_commercial_properties_others, dummy_other_others)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Plot
+ggplot(gather(summary_table), aes(x = reorder(key, -value), y = value)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = value), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.3b. Distribution of property types for retrofit \n(sole traders, employees and contractors)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 170, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 40))
+```
+
+Figure 4.3c shows the distribution for all installers.
+
+```{r}
+### Must run code for Figure 4.3a and 4.3b first ###
+
+# Merge all new dummies for this question to get distribution for all installers.
+data <- data %>% 
+  mutate(dummy_private_homes_all = coalesce(dummy_private_homes_owners, dummy_private_homes_others))
+data <- data %>% 
+  mutate(dummy_social_housing_all = coalesce(dummy_social_housing_owners, dummy_social_housing_others))
+data <- data %>% 
+  mutate(dummy_commercial_properties_all = coalesce(dummy_commercial_properties_owners, dummy_commercial_properties_others))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_owners, dummy_other_others))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Plot
+ggplot(gather(summary_table), aes(x = reorder(key, -value), y = value)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = value), position = position_dodge(width = 0.9), vjust = -0.7, size = 3) +
+  labs(title = "Figure 4.3c. Distribution of property types for retrofit (all installers)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 310, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 40))
+```
+
+Figure 4.3d shows the distribution by employment type for all installers.
+
+```{r}
+### Must run code for Figure 4.3a, 4.3b and 4.3c first ###
+
+# Merge all new dummies for this question to get distribution for all installers.
+data <- data %>% 
+  mutate(dummy_private_homes_all = coalesce(dummy_private_homes_owners, dummy_private_homes_others))
+data <- data %>% 
+  mutate(dummy_social_housing_all = coalesce(dummy_social_housing_owners, dummy_social_housing_others))
+data <- data %>% 
+  mutate(dummy_commercial_properties_all = coalesce(dummy_commercial_properties_owners, dummy_commercial_properties_others))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_owners, dummy_other_others))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all, employment_type)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  group_by(employment_type) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Employment type",
+               "Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Employment type`)
+
+# Order labels
+order_labels <- c("Individual private homes", 
+                  "Social housing",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Employment type`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.3d. Distribution of property types for retrofit \nby employment type (all installers)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 300, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Employment type`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.3d. Distribution of property types for retrofit \nby employment type (all installers)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.04 \| How does the type of properties that survey participants do retrofit work in differ depending on the size of company they work for or own?
+
+Next we want to know if the distribution of property types varies across different company sizes. Figure 4.4a shows the distribution for company owners and sole traders.
+
+```{r}
+#### Must run code for Q4.3 first ####
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- subset_question %>%
+  select(dummy_private_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all, size_company_owned_collapsed_1)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  group_by(size_company_owned_collapsed_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("Individual private homes", 
+                  "Social housing",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.4a. Distribution of property types for retrofit \nby company size (company owners and sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 180, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.4a. Distribution of property types for retrofit \nby company size (company owners and sole traders)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.4b shows the distribution for employees. Note that contractors were not asked about the size of the companies that hire them.
+
+```{r}
+#### Must run code for Q4.3 first ####
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type == "Employee")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- subset_question %>%
+  select(dummy_private_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all, size_company_employee_work_1)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  group_by(size_company_employee_work_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("Individual private homes", 
+                  "Social housing",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.4b. Distribution of property types for retrofit \nby company size (employees)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 110, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.4b. Distribution of property types for retrofit \nby company size (employees)",
+       x = "",
+       y = "Frequency",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.05 \| For participants that do new build work, what type of properties have they done work in?
+
+For participants who do new build, we also want to get a sense of the type of properties they work on. Among all respondents, 27 installers responded only new build to question 30 and 202 installers responded both new build and retrofit.
+
+Figure 4.5a shows the distribution for company owners (excluding sole traders) who responded only new build or both new build and retrofit to question 30 (n=113).
+
+```{r}
+# Separate answers
+data$x32a_answer1 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x32a_answer2 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x32a_answer3 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x32a_answer4 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+# No respondents select more than 4 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_owners = ifelse(str_detect(x32a_answer1, fixed("Individual private homes")) |
+                                             str_detect(x32a_answer2, fixed("Individual private homes")) |
+                                             str_detect(x32a_answer3, fixed("Individual private homes")) |
+                                             str_detect(x32a_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_owners = ifelse(str_detect(x32a_answer1, fixed("Social housing developments")) |
+                                              str_detect(x32a_answer2, fixed("Social housing developments")) |
+                                              str_detect(x32a_answer3, fixed("Social housing developments")) |
+                                              str_detect(x32a_answer4, fixed("Social housing developments")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_owners = ifelse(str_detect(x32a_answer1, fixed("Commercial properties")) |
+                                                     str_detect(x32a_answer2, fixed("Commercial properties")) |
+                                                     str_detect(x32a_answer3, fixed("Commercial properties")) |
+                                                     str_detect(x32a_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_multiple_homes_owners = ifelse(str_detect(x32a_answer1, fixed("Private developments of multiple homes")) |
+                                     str_detect(x32a_answer2, fixed("Private developments of multiple homes")) |
+                                     str_detect(x32a_answer3, fixed("Private developments of multiple homes")) |
+                                     str_detect(x32a_answer4, fixed("Private developments of multiple homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_owners = ifelse(str_detect(x32a_answer1, fixed("Other")) |
+                                     str_detect(x32a_answer2, fixed("Other")) |
+                                     str_detect(x32a_answer3, fixed("Other")) |
+                                     str_detect(x32a_answer4, fixed("Other")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_owners, dummy_multiple_homes_owners, dummy_social_housing_owners, dummy_commercial_properties_owners, dummy_other_owners)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "properties", "count") %>% 
+  mutate(properties = factor(properties, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = properties, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.5a. Distribution of property types for new build (company owners)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 110, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.5b shows the distribution for all other installers.
+
+```{r}
+# Separate answers
+data$x32b_answer1 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x32b_answer2 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x32b_answer3 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x32b_answer4 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+# No respondents select more than 4 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_others = ifelse(str_detect(x32b_answer1, fixed("Individual private homes")) |
+                                             str_detect(x32b_answer2, fixed("Individual private homes")) |
+                                             str_detect(x32b_answer3, fixed("Individual private homes")) |
+                                             str_detect(x32b_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_others = ifelse(str_detect(x32b_answer1, fixed("Social housing developments")) |
+                                              str_detect(x32b_answer2, fixed("Social housing developments")) |
+                                              str_detect(x32b_answer3, fixed("Social housing developments")) |
+                                              str_detect(x32b_answer4, fixed("Social housing developments")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_others = ifelse(str_detect(x32b_answer1, fixed("Commercial properties")) |
+                                                     str_detect(x32b_answer2, fixed("Commercial properties")) |
+                                                     str_detect(x32b_answer3, fixed("Commercial properties")) |
+                                                     str_detect(x32b_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_multiple_homes_others = ifelse(str_detect(x32b_answer1, fixed("Private developments of multiple homes")) |
+                                     str_detect(x32b_answer2, fixed("Private developments of multiple homes")) |
+                                     str_detect(x32b_answer3, fixed("Private developments of multiple homes")) |
+                                     str_detect(x32b_answer4, fixed("Private developments of multiple homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_others = ifelse(str_detect(x32b_answer1, fixed("Other")) |
+                                     str_detect(x32b_answer2, fixed("Other")) |
+                                     str_detect(x32b_answer3, fixed("Other")) |
+                                     str_detect(x32b_answer4, fixed("Other")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_others, dummy_multiple_homes_others, dummy_social_housing_others, dummy_commercial_properties_others, dummy_other_others)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "properties", "count") %>% 
+  mutate(properties = factor(properties, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = properties, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.5b. Distribution of property types for new build \n(sole traders, employees and contractors)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 110, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.4c shows the distribution for all installers.
+
+```{r}
+### Must run code for Figure 4.5a and 4.5b first ###
+
+# Merge all new dummies for this question to get distribution for all installers.
+data <- data %>% 
+  mutate(dummy_private_homes_all = coalesce(dummy_private_homes_owners, dummy_private_homes_others))
+data <- data %>% 
+  mutate(dummy_social_housing_all = coalesce(dummy_social_housing_owners, dummy_social_housing_others))
+data <- data %>% 
+  mutate(dummy_commercial_properties_all = coalesce(dummy_commercial_properties_owners, dummy_commercial_properties_others))
+data <- data %>% 
+  mutate(dummy_multiple_homes_all = coalesce(dummy_multiple_homes_owners, dummy_multiple_homes_others))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_owners, dummy_other_others))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_all, dummy_multiple_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "properties", "count") %>% 
+  mutate(properties = factor(properties, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = properties, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.5c. Distribution of property types for new build (all installers)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 210, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Another way to display this distribution is a plot for all installers by employment type, as shown in Figure 4.5d.
+
+```{r}
+### Must run code for Figure 4.5a, 4.5b and 4.5c first ###
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_private_homes_all, dummy_multiple_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all, employment_type)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  group_by(employment_type) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Employment type",
+               "Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Employment type`)
+
+# Order labels
+order_labels <- c("Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Employment type`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.5d. Distribution of property types for new build \nby employment type (all installers)",
+       x = "",
+       y = "Count",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 210, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Employment type`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.5d. Distribution of property types for new build \nby employment type (all installers)",
+       x = "",
+       y = "Count",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 110, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 11)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.06 \| How does the type of properties that survey participants do new build work in differ depending on the size of company they own or work for?
+
+We also want to know if the distribution varies by the size of the company installers own or work for. Figure 4.6a shows the distribution for company owners and sole traders.
+
+```{r}
+#### Must run code for Q4.5 first ####
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- subset_question %>%
+  select(dummy_private_homes_all, dummy_multiple_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all, size_company_owned_collapsed_1)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  group_by(size_company_owned_collapsed_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("Individual private homes",
+                  "Private developments of multiple homes",
+                  "Social housing",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.6a. Distribution of property types for new build \nby company size (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 170, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.6a. Distribution of property types for new build \nby company size (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.6b shows the distribution for employees (contractors were not asked about company size).
+
+```{r}
+#### Must run code for Q4.5 first ####
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type == "Employee")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- subset_question %>%
+  select(dummy_private_homes_all, dummy_multiple_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all, size_company_employee_work_1)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  group_by(size_company_employee_work_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "Individual private homes", 
+               "Private developments of multiple homes",
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("Individual private homes", 
+                  "Private developments of multiple homes",
+                  "Social housing",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.6b. Distribution of property types for new build \nby company size (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.6b. Distribution of property types for new build \nby company size (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 50, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.07 \| For participants that do both retrofit and new build work, what type accounts for the majority of their work?
+
+For installers that do both retrofit and new build work (n=202), we ask what type accounts for the majority of their work. Figure 4.7a shows the distribution for all installers.
+
+```{r}
+# Merge into a single variable and turn "Not asked" into NA
+data <- data %>%
+  mutate(x33a_bis = recode(x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been, "Not asked" = NA_character_))
+data <- data %>%
+  mutate(x33b_bis = recode(x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been, "Not asked" = NA_character_))
+data <- data %>% 
+  mutate(x33_all = coalesce(x33a_bis, x33b_bis))
+
+# Plot distribution for all installers
+data_filtered <- data[!is.na(data$x33_all),]
+ggplot(data_filtered, aes(x = x33_all)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 4.7a. Distribution of the majority of work type (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.7b shows the distribution by employment type.
+
+```{r}
+### Must run code for Figure 4.7a ###
+summary_table <- data %>%
+  drop_na(x33_all, employment_type) %>%
+  count(x33_all, employment_type) %>%
+  rename(count = n)
+
+# Plot distribution
+ggplot(summary_table, aes(x = x33_all, y = count, fill = employment_type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.7b. Distribution of the majority of work type \nby employment type (all installers)",
+       x = "",
+       y = "Count",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(summary_table, aes(x = x33_all, y = count, fill = employment_type)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.7b. Distribution of the majority of work type by employment \ntype (all installers)",
+       x = "",
+       y = "Count",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.08 \| Of survey participants that do both retrofit and new build work, how does the type of work that accounts for the majority of their work differ depending on the size of the company they work for or own?
+
+Next we want to know if this distribution varies depending on the size of the company installers either own or work for. Figure 4.8a shows the distribution for company owners and sole traders (n=109).
+
+```{r}
+#### Must run code for Q4.7 first ####
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Summarise the distribution
+summary_table <- subset_question %>%
+  drop_na(x33_all, size_company_owned_collapsed_1) %>%
+  count(x33_all, size_company_owned_collapsed_1) %>%
+  rename(count = n)
+
+# Plot
+ggplot(summary_table, aes(x = x33_all, y = count, fill = size_company_owned_collapsed_1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.8a. Distribution of the majority of work type by company \nsize (sole traders and company owners)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(summary_table, aes(x = x33_all, y = count, fill = size_company_owned_collapsed_1)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.8a. Distribution of the majority of work type by company \nsize (sole traders and company owners)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 50, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.8b shows the distribution for employees.
+
+```{r}
+#### Must run code for Q4.7 first ####
+
+# Subset for company owners and sole traders only
+subset_question <- data %>% 
+  filter(employment_type == "Employee")
+
+# Summarise the distribution
+summary_table <- subset_question %>%
+  drop_na(x33_all, size_company_employee_work_1) %>%
+  count(x33_all, size_company_employee_work_1) %>%
+  rename(count = n)
+
+# Plot
+ggplot(summary_table, aes(x = x33_all, y = count, fill = size_company_employee_work_1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.8b. Distribution of the majority of work type by company \nsize (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure first ###
+
+# Alternative plot
+ggplot(summary_table, aes(x = x33_all, y = count, fill = size_company_employee_work_1)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.8b. Distribution of the majority of work type by company \nsize (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.09 \| For participants that do retrofit work, what type of property accounts for the majority of their work?
+
+The installers who responded that they do retrofit work (either only retrofit or retrofit and new build) were asked what type of property accounts for the majority of their work. Figure 4.9a shows the distribution for company owners (n=149).
+
+```{r}
+# Duplicate variable and replace not asked by na to plot
+data <- data %>%
+  mutate(x34a_bis = recode(x34a_over_the_past_12_months_which_of_the_following_accounts_for_the_majority_of_the_retrofit_heat_pump_installations_your_business_has_done, "Not asked" = NA_character_))
+
+# Plot
+data_filtered <- data[!is.na(data$x34a_bis),]
+ggplot(data_filtered, aes(x = x34a_bis)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 4.9a. Distribution of the most common property type \nfor retrofit work (company owners)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 140, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.9b shows the distribution for sole traders, employees and contractors.
+
+```{r}
+# Duplicate variable and replace not asked by na to plot
+data <- data %>%
+  mutate(x34b_bis = recode(x34b_over_the_past_12_months_which_of_the_following_accounts_for_the_majority_of_your_retrofit_heat_pump_installations, "Not asked" = NA_character_))
+
+# Plot
+data_filtered <- data[!is.na(data$x34b_bis),]
+ggplot(data_filtered, aes(x = x34b_bis)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 4.9b. Distribution of the most common property type \nfor retrofit work (sole traders, employees and contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 160, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.9c shows the distribution for all installers by employment type (n=318).
+
+```{r}
+### Must run code for Figures 4.9a and 4.9b first ###
+
+# Merge variables
+data <- data %>% 
+  mutate(x34_all = coalesce(x34a_bis, x34b_bis))
+
+# Plot
+data_filtered <- data[!is.na(data$x34_all),]
+ggplot(data_filtered, aes(x = x34_all, fill = employment_type)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Figure 4.9c. Distribution of the most common property type \nfor retrofit work (all installers)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  geom_text(stat='count', aes(label=after_stat(count)), position = position_dodge(width = 0.9), vjust=-0.7, size = 3) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.10 \| How does the type of property that makes up the majority of survey participants’ retrofit work differ depending on the size of the company they work for or own?
+
+Figure 4.10a shows the distribution by company size for sole traders and company owners.
+
+```{r}
+### Must run code for Figure 4.9 first ###
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Get summary table
+summary_table <- subset_question %>%
+  drop_na(x34_all, size_company_owned_collapsed_1) %>%
+  count(x34_all, size_company_owned_collapsed_1) %>%
+  rename(count = n)
+
+# Plot distribution
+ggplot(summary_table, aes(x = x34_all, y = count, fill = size_company_owned_collapsed_1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.10a. Distribution of the majority of retrofit work type \nby company size (sole traders and company owners)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Run code for previous figure first ###
+
+# Alternative plot
+ggplot(summary_table, aes(x = x34_all, y = count, fill = size_company_owned_collapsed_1)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.10a. Distribution of the majority of work type \nby company size (sole traders and company owners)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.10b shows the distribution by company size for employees.
+
+```{r}
+### Must run code for Figure 4.9 first ###
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type == "Employee")
+
+# Get summary table
+summary_table <- subset_question %>%
+  drop_na(x34_all, size_company_employee_work_1) %>%
+  count(x34_all, size_company_employee_work_1) %>%
+  rename(count = n)
+
+# Plot distribution
+ggplot(summary_table, aes(x = x34_all, y = count, fill = size_company_employee_work_1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.10b. Distribution of the majority of work type \nby company size (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Run code for previous figure first ###
+
+# Alternative plot
+ggplot(summary_table, aes(x = x34_all, y = count, fill = size_company_employee_work_1)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.10b. Distribution of the majority of work type \nby company size (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.11 \| For survey participants that do new build work, what type of property accounts for the majority of their work?
+
+The installers who responded that they do new build work (either only new build or retrofit and new build) were asked what type of property accounts for the majority of their work. Figure 4.11a shows the distribution for company owners (n=113).
+
+```{r}
+# Duplicate variable and replace not asked by na to plot
+data <- data %>%
+  mutate(x35a_bis = recode(x35a_over_the_past_12_months_which_of_the_following_accounts_for_the_majority_of_the_new_build_heat_pump_installations_your_business_has_done, "Not asked" = NA_character_))
+
+# Plot
+data_filtered <- data[!is.na(data$x35a_bis),]
+ggplot(data_filtered, aes(x = x35a_bis)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 4.11a. Distribution of the most common property type \nfor new build work (company owners)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.11b shows the distribution for sole traders, employees and contractors (n=116).
+
+```{r}
+# Duplicate variable and replace not asked by na to plot
+data <- data %>%
+  mutate(x35b_bis = recode(x35b_over_the_past_12_months_which_of_the_following_accounts_for_the_majority_of_your_new_build_heat_pump_installations, "Not asked" = NA_character_))
+
+# Plot
+data_filtered <- data[!is.na(data$x35b_bis),]
+ggplot(data_filtered, aes(x = x35b_bis)) +
+  geom_bar(fill = "blue") +
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5, size = 3) + 
+  labs(title = "Figure 4.11b. Distribution of the most common property type \nfor new build work (sole traders, employees and contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.11c shows the distribution for all installers by employment type (n=229).
+
+```{r}
+### Must run code for Figures 4.11a and 4.11b first ###
+
+# Merge variables
+data <- data %>% 
+  mutate(x35_all = coalesce(x35a_bis, x35b_bis))
+
+# Plot
+data_filtered <- data[!is.na(data$x35_all),]
+ggplot(data_filtered, aes(x = x35_all, fill = employment_type)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Figure 4.11c. Distribution of the most common property type \nfor new build work by employment type (all installers)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  geom_text(stat='count', aes(label=after_stat(count)), position = position_dodge(width = 0.9), vjust=-0.7, size = 3) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.12 \| How does the type of property that makes up the majority of survey participants' new build work differ depending on the size of the company they work for or own?
+
+Figure 4.12a shows the distribution by company size for sole traders and company owners.
+
+```{r}
+### Must run code for Figure 4.10 first ###
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Get summary table
+summary_table <- subset_question %>%
+  drop_na(x35_all, size_company_owned_collapsed_1) %>%
+  count(x35_all, size_company_owned_collapsed_1) %>%
+  rename(count = n)
+
+# Plot distribution
+ggplot(summary_table, aes(x = x35_all, y = count, fill = size_company_owned_collapsed_1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.12a. Distribution of the majority of new build work type \nby company size (sole traders and company owners)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 150, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Run code for previous figure first ###
+
+# Alternative plot
+ggplot(summary_table, aes(x = x35_all, y = count, fill = size_company_owned_collapsed_1)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.12a. Distribution of the majority of new build work type \nby company size (sole traders and company owners)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.12b shows the distribution by company size for employees.
+
+```{r}
+### Must run code for Figure 4.11 first ###
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type == "Employee")
+
+# Get summary table
+summary_table <- subset_question %>%
+  drop_na(x35_all, size_company_employee_work_1) %>%
+  count(x35_all, size_company_employee_work_1) %>%
+  rename(count = n)
+
+# Plot distribution
+ggplot(summary_table, aes(x = x35_all, y = count, fill = size_company_employee_work_1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.12b. Distribution of the majority of new build work type \nby company size (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Run code for previous figure first ###
+
+# Alternative plot
+ggplot(summary_table, aes(x = x35_all, y = count, fill = size_company_employee_work_1)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.12b. Distribution of the majority of new build work type \nby company size (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.13 \| How do survey participants conduct MCS-accredited heat pump installations in retrofit properties?
+
+Figure 4.13a shows the distribution for company owners, excluding sole traders (n=163)
+
+```{r}
+# Separate answers
+data$x36a_answer1 <- sapply(data$x36a_in_your_businesss_retrofit_work_does_your_business_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[1]))
+data$x36a_answer2 <- sapply(data$x36a_in_your_businesss_retrofit_work_does_your_business_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[2]))
+data$x36a_answer3 <- sapply(data$x36a_in_your_businesss_retrofit_work_does_your_business_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[3]))
+# No respondents select more than 3 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_MCS_certified_owners = ifelse(str_detect(x36a_answer1, fixed("My firm’s MCS certification")) |
+                                             str_detect(x36a_answer2, fixed("My firm’s MCS certification")) |
+                                             str_detect(x36a_answer3, fixed("My firm’s MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_sign_off_owners = ifelse(str_detect(x36a_answer1, fixed("With sign off from another MCS certified firm")) |
+                                        str_detect(x36a_answer2, fixed("With sign off from another MCS certified firm")) |
+                                        str_detect(x36a_answer3, fixed("With sign off from another MCS certified firm")), 1, NA_integer_)) # used different end of code because created different values when no sign off value.
+
+data <- data %>% 
+  mutate(dummy_umbrella_scheme_owners = ifelse(str_detect(x36a_answer1, fixed("An MCS umbrella scheme")) |
+                                               str_detect(x36a_answer2, fixed("An MCS umbrella scheme")) |
+                                               str_detect(x36a_answer3, fixed("An MCS umbrella scheme")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_without_MCS_owners = ifelse(str_detect(x36a_answer1, fixed("Without MCS certification")) |
+                                           str_detect(x36a_answer2, fixed("Without MCS certification")) |
+                                           str_detect(x36a_answer3, fixed("Without MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_other_owners = ifelse(str_detect(x36a_answer1, fixed("Other")) |
+                                     str_detect(x36a_answer2, fixed("Other")) |
+                                     str_detect(x36a_answer3, fixed("Other")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_dont_know_owners = ifelse(str_detect(x36a_answer1, fixed("Don't know")) |
+                                         str_detect(x36a_answer2, fixed("Don't know")) |
+                                         str_detect(x36a_answer3, fixed("Don't know")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_MCS_certified_owners, dummy_sign_off_owners, dummy_umbrella_scheme_owners, dummy_without_MCS_owners, dummy_other_owners, dummy_dont_know_owners)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("My firm’s MCS certification",
+               "With sign off from another MCS certified firm",
+               "An MCS umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("My firm’s MCS certification",
+               "With sign off from another MCS certified firm",
+               "An MCS umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "answers", "count") %>% 
+  mutate(answers = factor(answers, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = answers, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.13a. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners, excluding sole traders)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.13b shows the distribution for sole traders (n=38)
+
+```{r}
+# Separate answers
+data$x36b_answer1 <- sapply(data$x36b_in_your_retrofit_work_do_you_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[1]))
+data$x36b_answer2 <- sapply(data$x36b_in_your_retrofit_work_do_you_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[2]))
+# No respondents select more than 2 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_MCS_certified_traders = ifelse(str_detect(x36b_answer1, fixed("My own MCS certification")) |
+                                              str_detect(x36b_answer2, fixed("My own MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_sign_off_traders = ifelse(str_detect(x36b_answer1, fixed("With sign off from another MCS certified person or firm")) |
+                                         str_detect(x36b_answer2, fixed("With sign off from another MCS certified person or firm")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_umbrella_scheme_traders = ifelse(str_detect(x36b_answer1, fixed("An MCS umbrella scheme")) |
+                                                str_detect(x36b_answer2, fixed("An MCS umbrella scheme")), 1, NA_integer_)) # used different end of code because created different values when no sign off value.
+
+data <- data %>% 
+  mutate(dummy_without_MCS_traders = ifelse(str_detect(x36b_answer1, fixed("Without MCS certification")) |
+                                            str_detect(x36b_answer2, fixed("Without MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_other_traders = ifelse(str_detect(x36b_answer1, fixed("Other")) |
+                                      str_detect(x36b_answer2, fixed("Other")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_dont_know_traders = ifelse(str_detect(x36b_answer1, fixed("Don't know")) |
+                                          str_detect(x36b_answer2, fixed("Don't know")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_MCS_certified_traders, dummy_sign_off_traders, dummy_umbrella_scheme_traders, dummy_without_MCS_traders, dummy_other_traders, dummy_dont_know_traders)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("My own MCS certification",
+               "With sign off from another MCS certified person or firm",
+               "An MCS umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("My own MCS certification",
+                  "With sign off from another MCS certified person or firm",
+                  "An MCS umbrella scheme",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "answers", "count") %>% 
+  mutate(answers = factor(answers, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = answers, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.13b. Distribution of MCS-accredited heat pump installations in \nretrofit properties (sole traders)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 15, by = 1)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 20))
+```
+
+Figure 4.13c shows the distribution for employees (n=112)
+
+```{r}
+# Separate answers
+data$x36c_answer1 <- sapply(data$x36c_in_your_retrofit_work_do_you_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[1]))
+data$x36c_answer2 <- sapply(data$x36c_in_your_retrofit_work_do_you_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[2]))
+# No respondents select more than 2 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_MCS_certified_employees = ifelse(str_detect(x36c_answer1, fixed("My own MCS certification (I am the firm's Nominated Technical Person)")) |
+                                                str_detect(x36c_answer2, fixed("My own MCS certification (I am the firm's Nominated Technical Person)")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_firm_certification_employees = ifelse(str_detect(x36c_answer1, fixed("My firm's MCS certification (someone else is the firm's Nominated Technical Person)")) |
+                                                     str_detect(x36c_answer2, fixed("My firm's MCS certification (someone else is the firm's Nominated Technical Person)")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_umbrella_scheme_employees = ifelse(str_detect(x36c_answer1, fixed("An MCS umbrella scheme")) |
+                                                  str_detect(x36c_answer2, fixed("An MCS umbrella scheme")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_without_MCS_employees = ifelse(str_detect(x36c_answer1, fixed("Without MCS certification")) |
+                                              str_detect(x36c_answer2, fixed("Without MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_other_employees = ifelse(str_detect(x36c_answer1, fixed("Other")) |
+                                        str_detect(x36c_answer2, fixed("Other")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_dont_know_employees = ifelse(str_detect(x36c_answer1, fixed("Don't know")) |
+                                            str_detect(x36c_answer2, fixed("Don't know")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_MCS_certified_employees, dummy_firm_certification_employees, dummy_umbrella_scheme_employees, dummy_without_MCS_employees, dummy_other_employees, dummy_dont_know_employees)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("My own MCS certification (I am the firm's Nominated Technical Person)",
+               "My firm's MCS certification (someone else is the firm's Nominated Technical Person)",
+               "An MCS umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("My own MCS certification (I am the firm's Nominated Technical Person)",
+                  "My firm's MCS certification (someone else is the firm's Nominated Technical Person)",
+                  "An MCS umbrella scheme",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "answers", "count") %>% 
+  mutate(answers = factor(answers, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = answers, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.13c. Distribution of MCS-accredited heat pump installations in \nretrofit properties (employees)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 14))
+```
+
+Figure 4.13d shows the distribution for contractors (n=32)
+
+```{r}
+# Separate answers
+data$x36d_answer1 <- sapply(data$x36d_in_your_retrofit_work_do_you_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[1]))
+data$x36d_answer2 <- sapply(data$x36d_in_your_retrofit_work_do_you_install_heat_pumps_through_select_all_that_apply, function(x) as.character(x[2]))
+# No respondents select more than 2 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_MCS_certified_contractors = ifelse(str_detect(x36d_answer1, fixed("My own MCS certification")) |
+                                                  str_detect(x36d_answer2, fixed("My own MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_firm_certification_contractors = ifelse(str_detect(x36d_answer1, fixed("The MCS certification of the business I’m working for")) |
+                                                       str_detect(x36d_answer2, fixed("The MCS certification of the business I’m working for")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_umbrella_scheme_contractors = ifelse(str_detect(x36d_answer1, fixed("The MCS umbrella scheme of the business I’m working for")) |
+                                                    str_detect(x36d_answer2, fixed("The MCS umbrella scheme of the business I’m working for")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_without_MCS_contractors = ifelse(str_detect(x36d_answer1, fixed("Without MCS certification")) |
+                                                str_detect(x36d_answer2, fixed("Without MCS certification")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_other_contractors = ifelse(str_detect(x36d_answer1, fixed("Other")) |
+                                          str_detect(x36d_answer2, fixed("Other")), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_dont_know_contractors = ifelse(str_detect(x36d_answer1, fixed("Don't know")) |
+                                              str_detect(x36d_answer2, fixed("Don't know")), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select(dummy_MCS_certified_contractors, dummy_firm_certification_contractors, dummy_umbrella_scheme_contractors, dummy_without_MCS_contractors, dummy_other_contractors, dummy_dont_know_contractors)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("My own MCS certification",
+               "The MCS certification of the business I’m working for",
+               "The MCS umbrella scheme of the business I’m working for",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Order labels
+order_labels <- c("My own MCS certification",
+                  "The MCS certification of the business I’m working for",
+                  "The MCS umbrella scheme of the business I’m working for",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Modify table to plot
+summary_table_2 <- gather(summary_table, "answers", "count") %>% 
+  mutate(answers = factor(answers, levels = order_labels))
+
+# Plot
+ggplot(summary_table_2, aes(x = answers, y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = count), position = position_dodge(width = 0.9), vjust = -0.4, size = 3) +
+  labs(title = "Figure 4.13d. Distribution of MCS-accredited heat pump installations in \nretrofit properties (contractors)", x = "", y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 14))
+```
+
+Figure 4.13e shows the distribution by employment type (company owners and sole traders) for an aggregated classification of the outcome variable: “With sign off from another MCS certified firm” is coded as “An MCS umbrella scheme”.
+
+Note here that this figure provides number that don't exactly correspond to the previous ones for the merged variable "umbrella scheme". This is because 6 installers responded "sign off" and "umbrella scheme" to the question they were asked. Therefore, they are counted as different observations when we examine the distribution of each possible option. But when the two options are merged, these 6 installers are only counted once. These are 5 company owners and 1 sole trader.
+
+```{r}
+### Must run code for Figure 4.13a and 4.13b first ###
+
+# Recode variables to merge
+# Own MCS certification
+data <- data %>% 
+  mutate(dummy_own_MCS_both = case_when(
+    dummy_MCS_certified_owners == 1 ~ 1,
+    dummy_MCS_certified_traders == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Sign off
+data <- data %>% 
+  mutate(dummy_sign_off_both = case_when(
+    dummy_sign_off_owners == 1 ~ 1,
+    dummy_sign_off_traders == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Umbrella scheme
+data <- data %>% 
+  mutate(dummy_umbrella_scheme_both = case_when(
+    dummy_umbrella_scheme_owners == 1 ~ 1,
+    dummy_umbrella_scheme_traders == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Umbrella scheme merged
+data <- data %>% 
+  mutate(dummy_umbrella_scheme_both_merged = case_when(
+    dummy_sign_off_both == 1 ~ 1,
+    dummy_umbrella_scheme_both == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Without MCS certification
+data <- data %>% 
+  mutate(dummy_wihout_MCS_both = case_when(  
+    dummy_without_MCS_traders == 1 ~ 1,
+    dummy_without_MCS_owners == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Other
+data <- data %>% 
+  mutate(dummy_other_both = case_when(  
+    dummy_other_owners == 1 ~ 1,
+    dummy_other_traders == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Don't know
+data <- data %>% 
+  mutate(dummy_dont_know_both = case_when(  
+    dummy_dont_know_owners == 1 ~ 1,
+    dummy_dont_know_traders == 1 ~ 1,
+    TRUE ~ NA_integer_))
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  select(employment_type, dummy_own_MCS_both, dummy_umbrella_scheme_both_merged, dummy_wihout_MCS_both, dummy_other_both, dummy_dont_know_both)
+subset_question <- subset_question %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner"))
+
+# Get summary question
+summary_table <- subset_question %>%
+  group_by(employment_type) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Employment type",
+               "Own MCS certification (company or individual)", 
+               "An umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Employment type`)
+
+# Order labels
+order_labels <- c("Own MCS certification (company or individual)", 
+                  "An umbrella scheme",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Employment type`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.13e. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Employment type`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.13e. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.14 \| How does the method that survey participants use to conduct MCS-accredited heat pump installations in retrofit properties differ depending on the size of the company they work for or own?
+
+Next we want to know if the distribution varies by the size of the company installers own or work for. Figure 4.14a shows the distribution by company size for company owners and sole traders (n=201).
+
+```{r}
+### Must run code for Q 4.13 first ###
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner")) %>% 
+  select(size_company_owned_collapsed_1, dummy_own_MCS_both, dummy_sign_off_both, dummy_umbrella_scheme_both, dummy_wihout_MCS_both, dummy_other_both, dummy_dont_know_both)
+
+# Get summary question
+summary_table <- subset_question %>%
+  group_by(size_company_owned_collapsed_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "Own MCS certification (company or individual)",
+               "With sign off from another MCS certified person or firm",
+               "An umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("Own MCS certification (company or individual)",
+                  "With sign off from another MCS certified person or firm",
+                  "An umbrella scheme",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.14a. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code of previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.14a. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.14b shows the distribution for company owners and sole traders with an alternative classification of the ways to work with MCS.
+
+```{r}
+### Must run code for Q 4.13 first ###
+
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type %in% c("Sole trader", "Company owner")) %>% 
+  select(size_company_owned_collapsed_1, dummy_own_MCS_both, dummy_umbrella_scheme_both_merged, dummy_wihout_MCS_both, dummy_other_both, dummy_dont_know_both)
+
+# Get summary question
+summary_table <- subset_question %>%
+  group_by(size_company_owned_collapsed_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "Own MCS certification (company or individual)", 
+               "An umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("Own MCS certification (company or individual)", 
+                  "An umbrella scheme",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.14b. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code of previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.14b. Distribution of MCS-accredited heat pump installations in \nretrofit properties (company owners and sole traders)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Figure 4.14c shows the distribution for employees (n=112). Note that contractors were not asked about company size.
+
+```{r}
+# Subset company owners and sole traders
+subset_question <- data %>% 
+  filter(employment_type == "Employee") %>% 
+  select(size_company_employee_work_1, dummy_MCS_certified_employees, dummy_firm_certification_employees, dummy_umbrella_scheme_employees, dummy_without_MCS_employees, dummy_other_employees, dummy_dont_know_employees)
+
+# Get summary question
+summary_table <- subset_question %>%
+  group_by(size_company_employee_work_1) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Company size",
+               "My own MCS certification (I am the firm's Nominated Technical Person)",
+               "My firm's MCS certification (someone else is the firm's Nominated Technical Person)",
+               "An MCS umbrella scheme",
+               "Without MCS certification",
+               "Other",
+               "Don't know")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Company size`)
+
+# Order labels
+order_labels <- c("My own MCS certification (I am the firm's Nominated Technical Person)",
+                  "My firm's MCS certification (someone else is the firm's Nominated Technical Person)",
+                  "An MCS umbrella scheme",
+                  "Without MCS certification",
+                  "Other",
+                  "Don't know")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.14c. Distribution of MCS-accredited heat pump installations in \nretrofit properties (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Company size`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.14c. Distribution of MCS-accredited heat pump installations in \nretrofit properties (employees)",
+       x = "",
+       y = "Count",
+       fill = "Company size") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 45, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.15 \| How does the type of work that survey participants who do retrofit and new build work differ from those that only do retrofit?
+
+Next we want to know if the distribution of property types in which installers do work differ depending on whether they do both retrofit and new build work or only retrofit work. Figure 4.15a shows the distribution for all installers (n=318).
+
+```{r}
+### The code below repeats some of the code above because without that, all values for observations equals to "retrfit only" are turned into NAs"
+
+# Separate vector
+data$x30a_answer1 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30a_answer2 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+# Step 1
+data <- data %>% 
+  mutate(dummy_retrofit_q30a = ifelse(str_detect(x30a_answer1, fixed("Retrofit")) |
+                                        str_detect(x30a_answer2, fixed("Retrofit")), 1, 0)) 
+# I have a dummy variable that takes the value 1 if respondents replied retrofit only or retrofit and new build to q30a.
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_owners = case_when(dummy_retrofit_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Retrofit only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value retrofit only for the respondent who only do retrofit work.
+
+# Do the same for new build
+data <- data %>% 
+  mutate(dummy_newbuild_q30a = ifelse(str_detect(x30a_answer1, fixed("New build")) |
+                                        str_detect(x30a_answer2, fixed("New build")), 1, 0))
+# I have a dummy variable that takes the value 1 if respondents replied new build only or retrofit and new build to q30a.
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_owners = case_when(dummy_newbuild_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Newbuild only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value new build only for the respondent who only do new build work.
+
+# Create a summary retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_owners = case_when(retrofit_only_owners == "Retrofit only" ~ "Retrofit only",
+                                              newbuild_only_owners == "Newbuild only" ~ "New build only",
+                                              x30a_answer1 == "Not asked" ~ NA_character_,
+                                              TRUE ~ "Both retrofit and new build"))
+
+## retrofit_newbuild variable for sole traders, employees, and contractors
+# Separate vector
+data$x30b_answer1 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30b_answer2 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+# Step 1
+data <- data %>% 
+  mutate(dummy_retrofit_q30b = ifelse(str_detect(x30b_answer1, fixed("Retrofit")) |
+                                        str_detect(x30b_answer2, fixed("Retrofit")), 1, 0)) 
+# I have a dummy variable that takes the value 1 if respondents replied retrofit only or retrofit and new build to q30b.
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_others = case_when(dummy_retrofit_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Retrofit only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value retrofit only for the respondent who only do retrofit work.
+
+# Do the same for new build
+data <- data %>% 
+  mutate(dummy_newbuild_q30b = ifelse(str_detect(x30b_answer1, fixed("New build")) |
+                                        str_detect(x30b_answer2, fixed("New build")), 1, 0))
+# I have a dummy variable that takes the value 1 if respondents replied new build only or retrofit and new build to q30b.
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_others = case_when(dummy_newbuild_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Newbuild only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value new build only for the respondent who only do new build work.
+
+# Create a summary retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_others = case_when(retrofit_only_others == "Retrofit only" ~ "Retrofit only",
+                                              newbuild_only_others == "Newbuild only" ~ "New build only",
+                                              x30b_answer1 == "Not asked" ~ NA_character_,
+                                              TRUE ~ "Both retrofit and new build"))
+
+# Merge variables for all installers
+data <- data %>% 
+  mutate(retrofit_newbuild_all = coalesce(retrofit_newbuild_owners, retrofit_newbuild_others))
+
+# Separate answers
+data$x31a_answer1 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x31a_answer2 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x31a_answer3 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x31a_answer4 <- sapply(data$x31a_over_the_past_12_months_has_your_business_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_owners = ifelse(str_detect(x31a_answer1, fixed("Individual private homes")) |
+                                               str_detect(x31a_answer2, fixed("Individual private homes")) |
+                                               str_detect(x31a_answer3, fixed("Individual private homes")) |
+                                               str_detect(x31a_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_owners = ifelse(str_detect(x31a_answer1, fixed("Social housing")) |
+                                                str_detect(x31a_answer2, fixed("Social housing")) |
+                                                str_detect(x31a_answer3, fixed("Social housing")) |
+                                                str_detect(x31a_answer4, fixed("Social housing")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_owners = ifelse(str_detect(x31a_answer1, fixed("Commercial properties")) |
+                                                       str_detect(x31a_answer2, fixed("Commercial properties")) |
+                                                       str_detect(x31a_answer3, fixed("Commercial properties")) |
+                                                       str_detect(x31a_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_owners = ifelse(str_detect(x31a_answer1, fixed("Other")) |
+                                       str_detect(x31a_answer2, fixed("Other")) |
+                                       str_detect(x31a_answer3, fixed("Other")) |
+                                       str_detect(x31a_answer4, fixed("Other")), 1, 0))
+
+
+# Separate answers
+data$x31b_answer1 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x31b_answer2 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x31b_answer3 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x31b_answer4 <- sapply(data$x31b_over_the_past_12_months_have_you_done_retrofit_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_others = ifelse(str_detect(x31b_answer1, fixed("Individual private homes")) |
+                                               str_detect(x31b_answer2, fixed("Individual private homes")) |
+                                               str_detect(x31b_answer3, fixed("Individual private homes")) |
+                                               str_detect(x31b_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_others = ifelse(str_detect(x31b_answer1, fixed("Social housing")) |
+                                                str_detect(x31b_answer2, fixed("Social housing")) |
+                                                str_detect(x31b_answer3, fixed("Social housing")) |
+                                                str_detect(x31b_answer4, fixed("Social housing")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_others = ifelse(str_detect(x31b_answer1, fixed("Commercial properties")) |
+                                                       str_detect(x31b_answer2, fixed("Commercial properties")) |
+                                                       str_detect(x31b_answer3, fixed("Commercial properties")) |
+                                                       str_detect(x31b_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_others = ifelse(str_detect(x31b_answer1, fixed("Other")) |
+                                       str_detect(x31b_answer2, fixed("Other")) |
+                                       str_detect(x31b_answer3, fixed("Other")) |
+                                       str_detect(x31b_answer4, fixed("Other")), 1, 0))
+
+# Merge all new dummies for this question to get distribution for all installers.
+data <- data %>% 
+  mutate(dummy_private_homes_all = coalesce(dummy_private_homes_owners, dummy_private_homes_others))
+data <- data %>% 
+  mutate(dummy_social_housing_all = coalesce(dummy_social_housing_owners, dummy_social_housing_others))
+data <- data %>% 
+  mutate(dummy_commercial_properties_all = coalesce(dummy_commercial_properties_owners, dummy_commercial_properties_others))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_owners, dummy_other_others))
+
+
+# Subset work type
+subset_question <- data %>% 
+  filter(retrofit_newbuild_all %in% c("Retrofit only", "Both retrofit and new build")) %>% 
+  select(retrofit_newbuild_all, dummy_private_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all)
+
+# Get summary question
+summary_table <- subset_question %>%
+  group_by(retrofit_newbuild_all) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Work type",
+               "Individual private homes", 
+               "Social housing",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Work type`)
+
+# Order labels
+order_labels <- c("Individual private homes", 
+                  "Social housing",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Work type`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.15a. Distribution of property types by \nwork type (all employment types)",
+       x = "",
+       y = "Count",
+       fill = "Work type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 320, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Work type`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.15a. Distribution of property types by \nwork type (all employment types)",
+       x = "",
+       y = "Count",
+       fill = "Work type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 200, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 4.16 \| How does the type of work that survey participants who do retrofit and new build work differ from those that only do new build?
+
+Next we want to know if the distribution of property types in which installers do work differ depending on whether they do both retrofit and new build work or only new build work. Figure 4.16a shows the distribution for all installers (n=229).
+
+```{r}
+### Same note as for 4.15 ###
+
+# Separate vector
+data$x30a_answer1 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30a_answer2 <- sapply(data$x30a_has_your_business_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+# Step 1
+data <- data %>% 
+  mutate(dummy_retrofit_q30a = ifelse(str_detect(x30a_answer1, fixed("Retrofit")) |
+                                        str_detect(x30a_answer2, fixed("Retrofit")), 1, 0)) 
+# I have a dummy variable that takes the value 1 if respondents replied retrofit only or retrofit and new build to q30a.
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_owners = case_when(dummy_retrofit_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Retrofit only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value retrofit only for the respondent who only do retrofit work.
+
+# Do the same for new build
+data <- data %>% 
+  mutate(dummy_newbuild_q30a = ifelse(str_detect(x30a_answer1, fixed("New build")) |
+                                        str_detect(x30a_answer2, fixed("New build")), 1, 0))
+# I have a dummy variable that takes the value 1 if respondents replied new build only or retrofit and new build to q30a.
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_owners = case_when(dummy_newbuild_q30a == 1 & x33a_over_the_past_12_months_where_has_the_majority_of_the_heat_pump_installations_your_business_has_done_been == "Not asked" ~ "Newbuild only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value new build only for the respondent who only do new build work.
+
+# Create a summary retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_owners = case_when(retrofit_only_owners == "Retrofit only" ~ "Retrofit only",
+                                              newbuild_only_owners == "Newbuild only" ~ "New build only",
+                                              x30a_answer1 == "Not asked" ~ NA_character_,
+                                              TRUE ~ "Both retrofit and new build"))
+
+## retrofit_newbuild variable for sole traders, employees, and contractors
+# Separate vector
+data$x30b_answer1 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x30b_answer2 <- sapply(data$x30b_have_you_done_any_retrofit_or_new_build_heat_pump_installations_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+
+# Step 1
+data <- data %>% 
+  mutate(dummy_retrofit_q30b = ifelse(str_detect(x30b_answer1, fixed("Retrofit")) |
+                                        str_detect(x30b_answer2, fixed("Retrofit")), 1, 0)) 
+# I have a dummy variable that takes the value 1 if respondents replied retrofit only or retrofit and new build to q30b.
+
+# Step 2
+data <- data %>% 
+  mutate(retrofit_only_others = case_when(dummy_retrofit_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Retrofit only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value retrofit only for the respondent who only do retrofit work.
+
+# Do the same for new build
+data <- data %>% 
+  mutate(dummy_newbuild_q30b = ifelse(str_detect(x30b_answer1, fixed("New build")) |
+                                        str_detect(x30b_answer2, fixed("New build")), 1, 0))
+# I have a dummy variable that takes the value 1 if respondents replied new build only or retrofit and new build to q30b.
+
+# Step 2
+data <- data %>% 
+  mutate(newbuild_only_others = case_when(dummy_newbuild_q30b == 1 & x33b_over_the_past_12_months_where_has_the_majority_of_your_heat_pump_installation_work_been == "Not asked" ~ "Newbuild only", TRUE ~ NA_character_))
+# I have a dummy variable that takes the value new build only for the respondent who only do new build work.
+
+# Create a summary retrofit_newbuild variable
+data <- data %>% 
+  mutate(retrofit_newbuild_others = case_when(retrofit_only_others == "Retrofit only" ~ "Retrofit only",
+                                              newbuild_only_others == "Newbuild only" ~ "New build only",
+                                              x30b_answer1 == "Not asked" ~ NA_character_,
+                                              TRUE ~ "Both retrofit and new build"))
+
+# Merge variables for all installers
+data <- data %>% 
+  mutate(retrofit_newbuild_all = coalesce(retrofit_newbuild_owners, retrofit_newbuild_others))
+
+
+# Separate answers
+data$x32a_answer1 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x32a_answer2 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x32a_answer3 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x32a_answer4 <- sapply(data$x32a_over_the_past_12_months_has_your_business_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+# No respondents select more than 4 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_owners = ifelse(str_detect(x32a_answer1, fixed("Individual private homes")) |
+                                               str_detect(x32a_answer2, fixed("Individual private homes")) |
+                                               str_detect(x32a_answer3, fixed("Individual private homes")) |
+                                               str_detect(x32a_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_owners = ifelse(str_detect(x32a_answer1, fixed("Social housing developments")) |
+                                                str_detect(x32a_answer2, fixed("Social housing developments")) |
+                                                str_detect(x32a_answer3, fixed("Social housing developments")) |
+                                                str_detect(x32a_answer4, fixed("Social housing developments")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_owners = ifelse(str_detect(x32a_answer1, fixed("Commercial properties")) |
+                                                       str_detect(x32a_answer2, fixed("Commercial properties")) |
+                                                       str_detect(x32a_answer3, fixed("Commercial properties")) |
+                                                       str_detect(x32a_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_multiple_homes_owners = ifelse(str_detect(x32a_answer1, fixed("Private developments of multiple homes")) |
+                                                str_detect(x32a_answer2, fixed("Private developments of multiple homes")) |
+                                                str_detect(x32a_answer3, fixed("Private developments of multiple homes")) |
+                                                str_detect(x32a_answer4, fixed("Private developments of multiple homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_owners = ifelse(str_detect(x32a_answer1, fixed("Other")) |
+                                       str_detect(x32a_answer2, fixed("Other")) |
+                                       str_detect(x32a_answer3, fixed("Other")) |
+                                       str_detect(x32a_answer4, fixed("Other")), 1, 0))
+
+# Separate answers
+data$x32b_answer1 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[1]))
+data$x32b_answer2 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[2]))
+data$x32b_answer3 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[3]))
+data$x32b_answer4 <- sapply(data$x32b_over_the_past_12_months_have_you_done_any_new_build_heat_pump_installations_in_any_of_the_following_properties_select_all_that_apply, function(x) as.character(x[4]))
+# No respondents select more than 4 options.
+
+# Create dummy variables for each possible answer
+data <- data %>% 
+  mutate(dummy_private_homes_others = ifelse(str_detect(x32b_answer1, fixed("Individual private homes")) |
+                                               str_detect(x32b_answer2, fixed("Individual private homes")) |
+                                               str_detect(x32b_answer3, fixed("Individual private homes")) |
+                                               str_detect(x32b_answer4, fixed("Individual private homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_social_housing_others = ifelse(str_detect(x32b_answer1, fixed("Social housing developments")) |
+                                                str_detect(x32b_answer2, fixed("Social housing developments")) |
+                                                str_detect(x32b_answer3, fixed("Social housing developments")) |
+                                                str_detect(x32b_answer4, fixed("Social housing developments")), 1, 0))
+data <- data %>% 
+  mutate(dummy_commercial_properties_others = ifelse(str_detect(x32b_answer1, fixed("Commercial properties")) |
+                                                       str_detect(x32b_answer2, fixed("Commercial properties")) |
+                                                       str_detect(x32b_answer3, fixed("Commercial properties")) |
+                                                       str_detect(x32b_answer4, fixed("Commercial properties")), 1, 0))
+data <- data %>% 
+  mutate(dummy_multiple_homes_others = ifelse(str_detect(x32b_answer1, fixed("Private developments of multiple homes")) |
+                                                str_detect(x32b_answer2, fixed("Private developments of multiple homes")) |
+                                                str_detect(x32b_answer3, fixed("Private developments of multiple homes")) |
+                                                str_detect(x32b_answer4, fixed("Private developments of multiple homes")), 1, 0))
+data <- data %>% 
+  mutate(dummy_other_others = ifelse(str_detect(x32b_answer1, fixed("Other")) |
+                                       str_detect(x32b_answer2, fixed("Other")) |
+                                       str_detect(x32b_answer3, fixed("Other")) |
+                                       str_detect(x32b_answer4, fixed("Other")), 1, 0))
+
+
+# Merge all new dummies for this question to get distribution for all installers.
+data <- data %>% 
+  mutate(dummy_private_homes_all = coalesce(dummy_private_homes_owners, dummy_private_homes_others))
+data <- data %>% 
+  mutate(dummy_social_housing_all = coalesce(dummy_social_housing_owners, dummy_social_housing_others))
+data <- data %>% 
+  mutate(dummy_commercial_properties_all = coalesce(dummy_commercial_properties_owners, dummy_commercial_properties_others))
+data <- data %>% 
+  mutate(dummy_multiple_homes_all = coalesce(dummy_multiple_homes_owners, dummy_multiple_homes_others))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_owners, dummy_other_others))
+
+
+# Subset work type
+subset_question <- data %>% 
+  filter(retrofit_newbuild_all %in% c("New build only", "Both retrofit and new build")) %>% 
+  select(retrofit_newbuild_all, dummy_private_homes_all, dummy_multiple_homes_all, dummy_social_housing_all, dummy_commercial_properties_all, dummy_other_all)
+
+# Get summary question
+summary_table <- subset_question %>%
+  group_by(retrofit_newbuild_all) %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the summary_table
+new_names <- c("Work type",
+               "Individual private homes",
+               "Private developments of multiple homes",
+               "Social housing developments",
+               "Commercial properties",
+               "Other")
+
+# Rename variables in the subset for clear display in plot
+summary_table <- summary_table %>%
+  rename_all(~ new_names)
+
+# Reshape the data for ggplot
+summary_long <- summary_table %>%
+  gather(variable, count, -`Work type`)
+
+# Order labels
+order_labels <- c("Individual private homes",
+                  "Private developments of multiple homes",
+                  "Social housing developments",
+                  "Commercial properties",
+                  "Other")
+
+# Create plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Work type`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 4.16a. Distribution of property types by \nwork type (all employment types)",
+       x = "",
+       y = "Count",
+       fill = "Work type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 220, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+### Must run code for previous figure ###
+
+# Alternative plot
+ggplot(summary_long, aes(x = factor(variable, levels = order_labels), y = count, fill = `Work type`)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = ifelse(count > 0, as.character(count), "")),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  labs(title = "Figure 4.16a. Distribution of property types by \nwork type (all employment types)",
+       x = "",
+       y = "Count",
+       fill = "Work type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 200, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+See Section 5 for the next part of the installer survey analysis.
+
+To generate output: rmarkdown::render("G:\\\\My Drive\\\\Installer survey\\\\Installer survey - Section 4.Rmd")
+
+
+
