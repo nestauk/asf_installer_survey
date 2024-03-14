@@ -3,6 +3,9 @@ title: "Installer survey - Section 2"
 author: "Benoit Siberdt"
 date: "2024-01-26"
 output: html_document
+
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
