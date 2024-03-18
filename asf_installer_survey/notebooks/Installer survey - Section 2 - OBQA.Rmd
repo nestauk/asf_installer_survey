@@ -2156,7 +2156,7 @@ kable(summary_table,
 ## This is kind of funky as it has an anonymous function inside of it, because of each row being a list.
 
 extract_type <- function(name, string, var, suffix) {
-  map(var,
+  map(var, ## For each variable, it applies the following anonymous function to each list within it
     \(.x) {
       str_detect(.x, fixed(string)) |>
         sum(na.rm = TRUE) |>
@@ -2206,7 +2206,7 @@ data <- data |>
                     var = data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply),
       .progress = TRUE))
 
-# Combining all columns
+# Function for combining all columns for each type of heat pump
 sum_over <- function(var) {
   data |>
     mutate(!!as.name(var) := rowSums(pick(starts_with(var)))) |>

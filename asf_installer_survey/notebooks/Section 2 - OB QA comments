@@ -2,15 +2,20 @@
 
 ### Comments
 
-- I would suggest introducing a check for each mutate.
+- I would suggest introducing checks throughout your code. It will help you spot typos, and also makes QA easier if you've already checked your work. The other reason for doing this is that it can help your coding ability if you can do things multiple ways.
 - Not sure why you duplicate variables before making a table? You could just use a pipe.
 - I prefer using filter instead of square brackets when subsetting - it's more compatible with pipes if you're using tidyverse
-- It doesn't look like scale_y_continuous in working in the first graph
-- I personally prefer tabyl over xtabs / table
+- It doesn't look like scale_y_continuous in working in the first graph (or others)
+- I personally prefer tabyl over xtabs / table as it works well with the pipe
 - 749 / 835 - you have already made a variable denoting order in 749, so you don't need to repeat it in 835. You could make bespoke names for each grouping and refer back to them.
+- There's generally a lot of needless duplication of code (like lists being reassigned multiple times). Nothing wrong with it per se, but it does make your scripts a lot longer than they need to be.
 
+### Suggestions
+
+- I've entered in various ways of reducing the length of your code / requirement of copy and pasting code. These mostly are using functions, which I highly recommend for something as repetitive for this.
 
 
 ### Errors
 
 - Error in line 104 - should be Sole trader
+- Nothing else, very good work!
