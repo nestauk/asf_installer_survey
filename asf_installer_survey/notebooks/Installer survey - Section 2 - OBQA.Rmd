@@ -1,0 +1,2740 @@
+---
+title: "Installer survey - Section 2"
+author: "Benoit Siberdt"
+date: "2024-01-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Heat pump installer survey analysis
+
+## Section 2 - The work installers do (Part I)
+
+### Foreword
+
+As for Section 1, throughout the analysis, we collapsed responses and respondents to the survey into various subcategories to get the most relevant information. This collapsing was done based on the guidelines laid out in the [analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit){target="_blank"}.
+
+You can find the pre-analysis code to run before analysing section 2 of the installer survey below.
+
+```{r}
+##### Load packages
+library(arrow)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(wesanderson)
+library(khroma)
+
+##### Load dataset
+file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
+Installer_survey_data <- arrow::read_parquet(file_path)
+
+# Duplicate dataset to be sure not to mess it up
+data_full <- Installer_survey_data
+
+# Link to the Miro board
+# https://miro.com/app/board/uXjVNWK_xBg=/
+
+# Link to the analysis plan
+# https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.voghu12g248q
+
+##### Filter out partial responses
+data <- data_full %>%
+  filter(`0e. Analytical Sample` == "TRUE")  
+
+##### Change names of variables to make things easier
+data <- clean_names(data)
+
+
+##### Pre-analysis - Collapsed options and new variables
+
+## Create employment_type variables
+data <- data %>%
+  mutate(employment_type = case_when(x5_are_you_responding_to_this_survey_as == "An employee of a firm" ~ "Employee", 
+                                     x5_are_you_responding_to_this_survey_as == "A contractor or freelancer" ~ "Contractor or freelancer",
+                                     x6a_what_size_company_do_you_own == "I’m a sole trader" ~ "Sole trader",
+                                     x6a_what_size_company_do_you_own == "I own a company with 5 or fewer employees" ~ "Company owner", 
+                                     x6a_what_size_company_do_you_own == "I own a company with 6-25 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with 26-100 employees" ~ "Company owner",
+                                     x6a_what_size_company_do_you_own == "I own a company with over 100 employees" ~ "Company owner", TRUE ~ "Not asked"))
+data$employment_type <- as.factor(data$employment_type)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_soletrader_owner_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor or freelancer",
+                                                             employment_type == "Employee" ~ "Employee",
+                                                             employment_type == "Sole trader" ~ "Sole trader or company owner",
+                                                             employment_type == "Company owner" ~ "Sole trader or company owner"))
+data$employment_type_soletrader_owner_merged <- as.factor(data$employment_type_soletrader_owner_merged)
+
+# Create variable where employees and contractors are merged together
+data <- data %>%
+  mutate(employment_type_employee_contractor_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Employee" ~ "Contractor/freelancer or employee",
+                                                                employment_type == "Sole trader" ~ "Sole trader",
+                                                                employment_type == "Company owner" ~ "Company owner"))
+data$employment_type_employee_contractor_merged <- as.factor(data$employment_type_employee_contractor_merged)
+
+# Create dummy variable for employment type
+data <- data %>%
+  mutate(dummy_employment_type = case_when(employment_type == "Employee" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Contractor or freelancer" ~ "Employee or contractor/freelancer",
+                                           employment_type == "Company owner" ~ "Company owner or sole trader",
+                                           employment_type == "Sole trader" ~ "Company owner or sole trader"))
+data$dummy_employment_type <- as.factor(data$dummy_employment_type)
+
+# Create dummy for contractors and freelancers
+data <- data %>%
+  mutate(dummy_contractors = case_when(employment_type == "Contractor or freelancer" ~ 1, TRUE ~ 0))
+
+# Create dummy for employees
+data <- data %>%
+  mutate(dummy_employees = case_when(employment_type == "Employee" ~ 1, TRUE ~ 0))
+
+# Create dummy for sole traders
+data <- data %>%
+  mutate(dummy_soletraders = case_when(employment_type == "Sole traders" ~ 1, TRUE ~ 0))
+
+# Create dummy for company owner
+data <- data %>%
+  mutate(dummy_company_owner = case_when(employment_type == "Company owner" ~ 1, TRUE ~ 0))
+
+
+##### Participant age
+data <- data %>%
+  mutate(age_collapsed = recode_factor(x1_how_old_are_you,
+                                       "18-24" = "34 and under",
+                                       "25-34" = "34 and under",
+                                       "35-44" = "35-44",
+                                       "45-54" = "45-54",
+                                       "55-64" = "55 and over",
+                                       "65-74" = "55 and over",
+                                       "Over 75" = "55 and over",
+                                       "Prefer not to say" = "Prefer not to say"))
+
+
+##### Length of time in the heat pump sector
+data <- data %>%
+  mutate(length_hp_sector_collapsed = recode_factor(x4_how_long_have_you_been_working_with_heat_pumps,
+                                                    "I don’t work with heat pumps, but plan to do so in the twelve months" = "Don’t work with heat pumps",
+                                                    "I don’t work with heat pumps and have no plans to do so" = "Don’t work with heat pumps",
+                                                    "Don't know" = "Don’t work with heat pumps",
+                                                    "Less than 12 months" = "Under 3 years",
+                                                    "1-3 years" = "Under 3 years",
+                                                    "3-5 years" = "3-5 years",
+                                                    "5-10 years" = "5-10 years",
+                                                    "10-20 years" = "Over 10 years",
+                                                    "Over 20 years" = "Over 10 years"))
+
+
+##### Size of company owned
+# Version 1
+data <- data %>%
+  mutate(size_company_owned_collapsed_1 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium",
+                                                        "I own a company with 26-100 employees" = "Large",
+                                                        "I own a company with over 100 employees" = "Large",
+                                                        "Not asked" = "Not asked"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_owned_collapsed_2 = recode_factor(x6a_what_size_company_do_you_own,
+                                                        "I’m a sole trader" = "Sole trader",
+                                                        "I own a company with 5 or fewer employees" = "Small",
+                                                        "I own a company with 6-25 employees" = "Medium and large",
+                                                        "I own a company with 26-100 employees" = "Medium and large",
+                                                        "I own a company with over 100 employees" = "Medium and large",
+                                                        "Not asked" = "Not asked"))
+
+
+##### Size of company employees work for
+# Version 1
+data <- data %>%
+  mutate(size_company_employee_work_1 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "5 or fewer",
+                                                      "I work for a company with 6-25 employees" = "6-25",
+                                                      "I work for a company with 26-100 employees" = "26-100",
+                                                      "I work for a company with over 100 employees" = "Over 100",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+# Version 2
+data <- data %>%
+  mutate(size_company_employee_work_2 = recode_factor(x6b_what_size_company_do_you_work_for,
+                                                      "I work for a company with 5 or fewer employees" = "25 or fewer",
+                                                      "I work for a company with 6-25 employees" = "25 or fewer",
+                                                      "I work for a company with 26-100 employees" = "Over 25",
+                                                      "I work for a company with over 100 employees" = "Over 25",
+                                                      "Not asked" = "Not asked",
+                                                      "Don't know" = "Don't know"))
+
+
+##### Distance travelled for work
+data <- data %>%
+  mutate(distance_travelled_for_work_collapsed = recode_factor(x10_how_far_from_your_business_location_would_you_typically_travel_for_jobs_approximately,
+                                                               "Less than 25 miles" = "Less than 25 miles",
+                                                               "25 to 50 miles" = "25-50 miles",
+                                                               "50 to 100 miles" = "50-100 miles",
+                                                               "100 to 200 miles" = "Over 100 miles",
+                                                               "200 to 300 miles" = "Over 100 miles",
+                                                               "More than 300 miles" = "Over 100 miles",
+                                                               "Don't know" = "Don't know"))
+
+
+########### Additional pre-analysis code ###########
+
+## Domestic/commercial work split
+# Company
+data <- data %>%
+  mutate(dom_com_work_plit_12a = recode_factor(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of,
+                                               "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                               "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                               "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                               "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                               "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                               "Not asked" = "Not asked"))
+
+# Individual
+data <- data %>%
+  mutate(dom_com_work_plit_12b = recode_factor(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of,
+                                               "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                               "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                               "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                               "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                               "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                               "Not asked" = "Not asked"))
+
+
+## Intentions for domestic/commercial work split
+# Company
+data <- data %>%
+  mutate(intentions_dom_com_work_split_13a = recode_factor(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
+                                                           "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                                           "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                                           "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                                           "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                                           "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                                           "Not asked" = "Not asked"))
+
+# Individual
+data <- data %>%
+  mutate(intentions_dom_com_work_split_13b = recode_factor(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
+                                                           "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                                           "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                                           "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                                           "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                                           "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
+                                                           "Not asked" = "Not asked"))
+
+
+## Ratio heating system installations that are heat pumps
+# Company
+data <- data %>%
+  mutate(ratio_heating_systems_hp_company_14a = recode_factor(x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on,
+                                                              "Only heat pumps" = "Mostly heat pumps",
+                                                              "Mostly heat pumps, and some other systems" = "Mostly heat pumps",
+                                                              "An equal number of heat pumps and other systems" = "Equal split",
+                                                              "Mostly other systems, and some heat pumps" = "Mostly non-heat pumps",
+                                                              "Almost entirely other systems and the occasional heat pump" = "Mostly non-heat pumps",
+                                                              "My company doesn't install any heat pumps, but plans to do so in the next 12 months" = "Don’t install heat pumps",
+                                                              "My company doesn't install any heat pumps, and has no plans to do so" = "Don’t install heat pumps"))
+
+# Individual
+data <- data %>%
+  mutate(ratio_heating_systems_hp_engineer_14b = recode_factor(x14b_thinking_of_the_heating_systems_you_install_do_you_work_on,
+                                                               "Only heat pumps" = "Mostly heat pumps",
+                                                               "Mostly heat pumps, and some other systems" = "Mostly heat pumps",
+                                                               "An equal number of heat pumps and other systems" = "Equal split",
+                                                               "Mostly other systems, and some heat pumps" = "Mostly non-heat pumps",
+                                                               "Almost entirely other systems, and the occasional heat pump" = "Mostly non-heat pumps",
+                                                               "I don't install any heat pumps, but I plan to do so in the next 12 months" = "Don’t install heat pumps",
+                                                               "I don't install any heat pumps and have no plans to do so" = "Don’t install heat pumps"))
+```
+
+#### 2.01 \| What proportion of survey participants’ current work is domestic or commercial?
+
+Table and Figure 2.1a to 2.1c show the distribution of domestic vs commercial heating work across the different categories of installers (employment types). In the survey, company owners and the remaining three categories of installers were asked slightly different questions (although same choices). Therefore Table and Figure 2.1a shows the distribution for company owners, while Table and Figure 2.1.b provide the distribution for sole traders, employees, and contractors.
+
+```{r}
+# Table 2.1a
+# Duplicate variable
+data$x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis <- data$x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis = 
+      recode(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis,
+        "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis)
+kable(table, 
+      caption = "Table 2.1a. Type of heating work (company owners)", 
+      col.names = c("Heating work", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Figure 2.1a
+data_filtered <- data[!is.na(data$x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis),]
+ggplot(data_filtered, aes(x = x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.1a. Type of heating work (company owners)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+```{r}
+# Table 2.1b
+# Duplicate variable
+data$x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis <- data$x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis = 
+      recode(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis,
+        "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis)
+kable(table, 
+      caption = "Table 2.1b. Type of heating work (sole traders, employees, contractors)", 
+      col.names = c("Heating work", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Figure 2.1b
+data_filtered <- data[!is.na(data$x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis),]
+ggplot(data_filtered, aes(x = x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.1b. Type of heating work (sole traders, employees, contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+In the survey, company owners were asked question 12a, while sole traders, employees, and contractors were asked question 12b. The difference across these two questions lies in the slightly different formulation (asking about the company's work vs the individual's work). Given that answers were the same, Table and Figure 2.1c provide the distribution for all categories of installers together to give the overall distribution of survey respondents.
+
+```{r}
+# Create a new variable that combines the answers for questions 12a and 12b
+data <- data %>% 
+  mutate(x12c_all_installers = coalesce(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis,
+                                        x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis))
+
+# Create table
+table <- table(data$x12c_all_installers)
+kable(table, 
+      caption = "Table 2.1c. Type of heating work (all installers)", 
+      col.names = c("Heating work", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = x12c_all_installers)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.1c. Type of heating work (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 190, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+#### 2.02 \| What proportion of survey participants’ planned future work will be domestic or commercial?
+
+The following tables and figures show the distribution for the projection in the next 12 months of the ratio between domestic and commercial work. Given that the structure of the survey is identical to the previous question the same note applies. Therefore Tables and Figures 2.2a to 2.2c show the distribution for different groups of respondents: company owners only; employees, sole traders, and contractors; and all installers.
+
+```{r}
+# Table 2.2a
+# Duplicate variable
+data$x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis <- data$x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis = 
+      recode(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis,
+        "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis)
+kable(table, 
+      caption = "Table 2.2a. Type of heating work in the next 12 months (company owners)", 
+      col.names = c("Heating work", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Figure 2.2a
+data_filtered <- data[!is.na(data$x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis),]
+ggplot(data_filtered, aes(x = x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.2a. Type of heating work in the next 12 months (company owners)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15),
+                   limits = c("Entirely commercial heating work, and no domestic heating work", 
+                              "Mostly commercial heating work, and some domestic heating work", 
+                              "An even amount of domestic and commercial heating work", 
+                              "Mostly domestic heating work, and some commercial heating work",
+                              "Entirely domestic heating work, and no commercial heating work"))
+```
+
+```{r}
+# Table 2.2b
+# Duplicate variable
+data$x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis <- data$x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis = 
+      recode(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis,
+        "Not asked" = NA_character_))
+
+# Create table
+table <- table(data$x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis)
+kable(table, 
+      caption = "Table 2.2b. Type of heating work in the next 12 months (sole traders, employees, contractors)", 
+      col.names = c("Heating work", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Figure 2.2b
+data_filtered <- data[!is.na(data$x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis),]
+ggplot(data_filtered, aes(x = x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.2b. Type of heating work in the next 12 months (sole traders, employees, contractors)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+```{r}
+# Create a new variable that combines the answers for questions 13a and 13b
+data <- data %>% 
+  mutate(x13c_all_installers = coalesce(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis,                    x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis))
+
+# Create table
+table <- table(data$x13c_all_installers)
+kable(table, 
+      caption = "Table 2.2c. Type of heating work in the next 12 months (all installers)", 
+      col.names = c("Heating work", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = x13c_all_installers)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.2c. Type of heating work in the next 12 months (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 190, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+#### 2.03 \| Are survey participants planning to change the proportion of their domestic or commercial heating work?
+
+Based on the previous patterns, we also want to know whether installers plan to change the proportion of commercial and domestic works. To do this, we crossed the answers for the questions about current and future heating work to create a new binary variable that takes the values 1 if change and 0 otherwise. Table and Figure 2.3a shows the distribution.
+
+```{r}
+# Create new binary variable to identify if change between current and future work
+data <- data %>%
+  mutate(change_heating_work = ifelse(x12c_all_installers != x13c_all_installers, "Change", "No change"))
+data$change_heating_work <- as.factor(data$change_heating_work)
+
+# Plot the distribution
+ggplot(data, aes(x = change_heating_work)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.3a. Change between current and future heating work (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 300, by = 50))
+```
+
+```{r}
+# Alternative distribution with collapsed variable.
+# Create collapse for q12 variable
+data <- data %>%
+  mutate(x12c_all_installers_collapsed = recode_factor(x12c_all_installers, 
+                                             "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                             "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                             "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                             "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                             "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial"))
+
+# Create collapse for q13 variable
+data <- data %>%
+  mutate(x13c_all_installers_collapsed = recode_factor(x13c_all_installers, 
+                                             "Entirely domestic heating work, and no commercial heating work" = "Mostly/entirely domestic",
+                                             "Mostly domestic heating work, and some commercial heating work" = "Mostly/entirely domestic",
+                                             "An even amount of domestic and commercial heating work" = "Equal domestic/commercial",
+                                             "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
+                                             "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial"))
+
+# Create new binary variable to identify if change between current and future work
+data <- data %>%
+  mutate(change_heating_work_collapsed = ifelse(x12c_all_installers_collapsed != x13c_all_installers_collapsed, "Change", "No change"))
+data$change_heating_work_collapsed <- as.factor(data$change_heating_work_collapsed)
+
+# Plot the distribution
+ggplot(data, aes(x = change_heating_work_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.3a. Change between current and future heating work (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 300, by = 50))
+```
+
+For the installers who indicated that they will change their ratio of heating work, we also want to know what the change is. Table 2.3b show the distribution of change patterns of change installers' current ratio of commercial and domestic heating work.
+
+```{r}
+# Get details for the cases of change
+change_distribution <- data %>%
+  filter(change_heating_work_collapsed == "Change") %>%
+  count(x12c_all_installers_collapsed, x13c_all_installers_collapsed, name = "change_count")
+
+# Create a table
+kable(change_distribution, 
+      caption = "Table 2.3b. Patterns of change from current to future heating work (all installers)", 
+      col.names = c("Current heating work", "Future heating work", "Count"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+#### 2.04 \| How do planned changes to the proportion of survey participants’ domestic or commercial heating work differ depending on the size of the company they work for or own?
+
+Next, we want to know whether these patterns of change overlap with specific categories of installers or company size. Table 2.4a provides the distribution by employment type for installers who indicated they will change their ratio of heating work in the next 12 months.
+
+```{r}
+# Get the distribution of changes within each installer group
+change_distribution <- data %>%
+  filter(change_heating_work_collapsed == "Change") %>%
+  group_by(employment_type, x12c_all_installers_collapsed, x13c_all_installers_collapsed) %>%
+  count(name = "change_count")
+
+# Create a table
+kable(change_distribution, 
+      caption = "Table 2.4a. Patterns of change from current to future heating work by occupation type", 
+      col.names = c("Employment type", "Current heating work", "Future heating work", "Count"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+Table 2.4b provides the distribution by company size for employees.
+
+```{r}
+# Remove "Not asked" values
+desired_levels <- c("5 or fewer", "6-25", "26-100", "Over 100")
+
+# Get the distribution of changes within each installer group
+change_distribution <- data %>%
+  filter(change_heating_work_collapsed == "Change" & size_company_employee_work_1 %in% desired_levels) %>%
+  group_by(size_company_employee_work_1, x12c_all_installers_collapsed, x13c_all_installers_collapsed) %>%
+  count(name = "change_count")
+
+# Create a table
+kable(change_distribution, 
+      caption = "Table 2.4b. Patterns of change from current to future heating work by company size (employees)", 
+      col.names = c("Company size", "Current heating work", "Future heating work", "Count"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+Table 2.4c provides the distribution by company size for company owners (including sole traders).
+
+```{r}
+# Remove "Not asked" values
+desired_levels <- c("Sole trader", "Small", "Medium", "Large")
+
+# Get the distribution of changes within each installer group
+change_distribution <- data %>%
+  filter(change_heating_work_collapsed == "Change" & size_company_owned_collapsed_1 %in% desired_levels) %>%
+  group_by(size_company_owned_collapsed_1, x12c_all_installers_collapsed, x13c_all_installers_collapsed) %>%
+  count(name = "change_count")
+
+# Create a table
+kable(change_distribution, 
+      caption = "Table 2.4c. Patterns of change from current to future heating work by company size (company owners)", 
+      col.names = c("Company size", "Current heating work", "Future heating work", "Count"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+#### 2.05 \| How do planned changes to the proportion of survey participants’ domestic or commercial heating work differ depending on the amount of time they’ve been in the heat pump sector?
+
+Table 2.5 shows the change in ratio of heating work by the time the installers have been in the heat pump sector.
+
+```{r}
+# Get the distribution of changes within each installer group
+change_distribution <- data %>%
+  filter(change_heating_work_collapsed == "Change") %>%
+  group_by(x4_how_long_have_you_been_working_with_heat_pumps, x12c_all_installers_collapsed, x13c_all_installers_collapsed) %>%
+  count(name = "change_count")
+
+# Create a table
+kable(change_distribution, 
+      caption = "Table 2.5. Patterns of change from current to future heating work by time in the heat pump sector (all installers)", 
+      col.names = c("Time in the sector", "Current heating work", "Future heating work", "Count"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+#### 2.06 \| Of the systems that survey participants install, what proportion are heat pumps?
+
+Table and Figure 2.6a show the distribution of heating systems installations across the different categories of installers.
+
+```{r}
+# Merge Q14a and Q14b
+data <- data %>% 
+  mutate(installations_merge = case_when(
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "Only heat pumps" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "Only heat pumps" ~ "Only heat pumps",
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "Mostly heat pumps, and some other systems" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "Mostly heat pumps, and some other systems" ~ "Mostly heat pumps, and some other systems",
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "An equal number of heat pumps and other systems" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "An equal number of heat pumps and other systems" ~ "An equal number of heat pumps and other systems",
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "Mostly other systems, and some heat pumps" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "Mostly other systems, and some heat pumps" ~ "Mostly other systems, and some heat pumps",
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "Almost entirely other systems and the occasional heat pump" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "Almost entirely other systems, and the occasional heat pump" ~ "Almost entirely other systems, and the occasional heat pump",
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "My company doesn't install any heat pumps, but plans to do so in the next 12 months" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "I don't install any heat pumps, but I plan to do so in the next 12 months" ~ "My company doesn't/I don't install any heat pumps, but plan(s) to do so in the next 12 months",
+   x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "My company doesn't install any heat pumps, and has no plans to do so" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "I don't install any heat pumps and have no plans to do so" ~ "My company doesn't/I don't install any heat pumps, and has/have no plans to do so",
+   TRUE ~ "Other"))
+
+# Set order of the values for consistency with prior graphs
+data <- data %>% 
+  mutate(installations_merge = factor(installations_merge,
+                                      levels = c("Only heat pumps",
+                                                 "Mostly heat pumps, and some other systems",
+                                                 "An equal number of heat pumps and other systems",
+                                                 "Mostly other systems, and some heat pumps",
+                                                 "Almost entirely other systems, and the occasional heat pump",
+                                                 "My company doesn't/I don't install any heat pumps, but plan(s) to do so in the next 12 months",
+                                                 "My company doesn't/I don't install any heat pumps, and has/have no plans to do so")))
+
+# Create table
+table <- table(data$installations_merge)
+kable(table, 
+      caption = "Table 2.6a. Distribution of the different heating systems installations (all installers)", 
+      col.names = c("Type of heating systems", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Plot the distribution
+ggplot(data, aes(x = installations_merge)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.6a. Distribution of the different heating systems installations (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 120, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Next, we want to know whether different types of installers display different patterns. Table and Figure 2.6b show the distribution by employment type: sole traders, company owners, employees, and contractors.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + installations_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.6b. Distribution of the different heating systems installations by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + installations_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Installations", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Only heat pumps",
+                  "Mostly heat pumps, and some other systems",
+                  "An equal number of heat pumps and other systems",
+                  "Mostly other systems, and some heat pumps",
+                  "Almost entirely other systems, and the occasional heat pump",
+                  "Don't but plan to do so in the next 12 months",
+                  "Don't and have no plans to do so")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.6b. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.6b. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 2.6c provide the distribution for a binary classification of employment type.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + installations_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.6c. Distribution of the different heating systems service and maintenance by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + installations_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Installations", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Only heat pumps",
+                  "Mostly heat pumps, and some other systems",
+                  "An equal number of heat pumps and other systems",
+                  "Mostly other systems, and some heat pumps",
+                  "Almost entirely other systems, and the occasional heat pump",
+                  "Don't but plan to do so in the next 12 months",
+                  "Don't and have no plans to do so")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.6c. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.6c. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Lastly, the following tables and figures provide the distribution for an alternative classification of heating system installations (more aggregated). The approach is the same as above: first all installers, then by employment type, lastly by binary employment type. Table and Figure 2.6d show the distribution of heating systems installations across the different categories of installers.
+
+```{r}
+# Merge Q14a and Q14b for collapsed answers
+data <- data %>% 
+  mutate(installations_merge_collapsed = case_when(
+   ratio_heating_systems_hp_company_14a == "Mostly heat pumps" | ratio_heating_systems_hp_engineer_14b == "Mostly heat pumps" ~ "Mostly heat pumps",
+   ratio_heating_systems_hp_company_14a == "Equal split" | ratio_heating_systems_hp_engineer_14b == "Equal split" ~ "Equal split",
+   ratio_heating_systems_hp_company_14a == "Mostly non-heat pumps" | ratio_heating_systems_hp_engineer_14b == "Mostly non-heat pumps" ~ "Mostly non-heat pumps",
+   ratio_heating_systems_hp_company_14a == "Don’t install heat pumps" | ratio_heating_systems_hp_engineer_14b == "Don’t install heat pumps" ~ "Don’t install heat pumps",
+   TRUE ~ "Other"))
+
+# Set order of the values for consistency with prior graphs
+data <- data %>% 
+  mutate(installations_merge_collapsed = factor(installations_merge_collapsed,
+                                      levels = c("Mostly heat pumps",
+                                                 "Equal split",
+                                                 "Mostly non-heat pumps",
+                                                 "Don’t install heat pumps")))
+
+# Create table
+table <- table(data$installations_merge_collapsed)
+kable(table, 
+      caption = "Table 2.6d. Distribution of the different heating systems installations (all installers)", 
+      col.names = c("Type of heating systems", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Plot the distribution
+ggplot(data, aes(x = installations_merge_collapsed)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.6d. Distribution of the different heating systems installations (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 200, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Table and Figure 2.6e show the distribution by employment type: sole traders, company owners, employees, and contractors.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + installations_merge_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Mostly heat pumps",
+                        "Equal split",
+                        "Mostly non-heat pumps",
+                        "Don’t install heat pumps")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.6e. Distribution of the different heating systems installations by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + installations_merge_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Mostly heat pumps",
+                        "Equal split",
+                        "Mostly non-heat pumps",
+                        "Don’t install heat pumps")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Installations", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Mostly heat pumps",
+                  "Equal split",
+                  "Mostly non-heat pumps",
+                  "Don’t install heat pumps")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.6e. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.6e. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  scale_y_continuous(breaks = seq(0, 200, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 2.6f provide the distribution for a binary classification of employment type.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + installations_merge_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Mostly heat pumps",
+                        "Equal split",
+                        "Mostly non-heat pumps",
+                        "Don’t install heat pumps")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.6f. Distribution of the different heating systems service and maintenance by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + installations_merge_collapsed, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Mostly heat pumps",
+                        "Equal split",
+                        "Mostly non-heat pumps",
+                        "Don’t install heat pumps")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Installations", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Mostly heat pumps",
+                  "Equal split",
+                  "Mostly non-heat pumps",
+                  "Don’t install heat pumps")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.6f. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 15)) +
+  scale_y_continuous(breaks = seq(0, 100, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.6f. Distribution of the different heating systems installations by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 20)) +
+  scale_y_continuous(breaks = seq(0, 200, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 2.07 \| Of the systems that survey participants service and maintain, what proportion are heat pumps?
+
+We also want to know about the heating systems that installers service and maintain. It could that many only install heat pump but spend a large share of the week servicing gas boilers. Table and Figure 2.7a show the distribution for all installers.
+
+```{r}
+# Merge Q15a and Q15b
+data <- data %>% 
+  mutate(service_maintenance_merge = case_when(
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "Only heat pumps" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "Only heat pumps" ~ "Only heat pumps",
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "Mostly heat pumps, and some other systems" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "Mostly heat pumps, and some other systems" ~ "Mostly heat pumps, and some other systems",
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "An equal number of heat pumps and other systems" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "An equal number of heat pumps and other systems" ~ "An equal number of heat pumps and other systems",
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "Mostly other systems and some heat pumps" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "Mostly other systems and some heat pumps" ~ "Mostly other systems, and some heat pumps",
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "Almost entirely other systems and the occasional heat pump" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "Almost entirely other systems and the occasional heat pump" ~ "Almost entirely other systems, and the occasional heat pump",
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "My company doesn't service and maintain any heat pumps, but plans to do so in the next 12 months" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "I don’t service and maintain any heat pumps, but plan to do so in the next year" ~ "My company doesn't/I don't service and maintain any heat pumps, but plan(s) to do so in the next 12 months",
+   x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "My company doesn't service and maintain any heat pumps and has no plans to do so" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "I don’t service and maintain any heat pumps and have no plans to do so" ~ "My company doesn't/I don't service and maintain any heat pumps, and has/have no plans to do so",
+   TRUE ~ "Other"))
+
+# Set order of the values for consistency with prior graphs
+data <- data %>% 
+  mutate(service_maintenance_merge = factor(service_maintenance_merge,
+                                      levels = c("Only heat pumps",
+                                                 "Mostly heat pumps, and some other systems",
+                                                 "An equal number of heat pumps and other systems",
+                                                 "Mostly other systems, and some heat pumps",
+                                                 "Almost entirely other systems, and the occasional heat pump",
+                                                 "My company doesn't/I don't service and maintain any heat pumps, but plan(s) to do so in the next 12 months",
+                                                 "My company doesn't/I don't service and maintain any heat pumps, and has/have no plans to do so")))
+
+# Create table
+table <- table(data$service_maintenance_merge)
+kable(table, 
+      caption = "Table 2.7a. Distribution of the different heating systems service and maintenance (all installers)", 
+      col.names = c("Type of heating systems", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Plot the distribution
+ggplot(data, aes(x = service_maintenance_merge)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.7a. Distribution of the different heating systems service and maintenance (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 120, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Table and Figure 2.7b show the distribution by employment type: sole traders, company owners, employees, and contractors.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + service_maintenance_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.7b. Distribution of the different heating systems service and maintenance by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + service_maintenance_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Service and maintenance", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Only heat pumps",
+                  "Mostly heat pumps, and some other systems",
+                  "An equal number of heat pumps and other systems",
+                  "Mostly other systems, and some heat pumps",
+                  "Almost entirely other systems, and the occasional heat pump",
+                  "Don't but plan to do so in the next 12 months",
+                  "Don't and have no plans to do so")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Service and maintenance`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.7b. Distribution of the different heating systems service and maintenance by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Service and maintenance`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.7b. Distribution of the different heating systems service and maintenance by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 2.7c provide the distribution for a binary classification of employment type.
+
+```{r}
+# Create table #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + service_maintenance_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.7c. Distribution of the different heating systems service and maintenance by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + service_maintenance_merge, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Only heat pumps",
+                        "Mostly heat pumps, and some other systems",      
+                        "An equal number of heat pumps and other systems",
+                        "Mostly other systems, and some heat pumps",
+                        "Almost entirely other systems, and the occasional heat pump",
+                        "Don't but plan to do so in the next 12 months",
+                        "Don't and have no plans to do so")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Service and maintenance", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Only heat pumps",
+                  "Mostly heat pumps, and some other systems",
+                  "An equal number of heat pumps and other systems",
+                  "Mostly other systems, and some heat pumps",
+                  "Almost entirely other systems, and the occasional heat pump",
+                  "Don't but plan to do so in the next 12 months",
+                  "Don't and have no plans to do so")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Service and maintenance`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.7c. Distribution of the different heating systems service and maintenance by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Service and maintenance`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.7c. Distribution of the different heating systems service and maintenance by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 2.08 \| What types of heat pumps have survey participants installed over the last 12 months?
+
+Two notes apply here. First, similarly to some questions above, different groups of installers were asked question 16 in a slightly different way to best fit their respective situations. The choices they were provided are the same. Therefore, we first merge questions 16a and 16b together to be able to have descriptive statistics for all respondents. Second, in this case, respondents were asked to select all options that apply. As a result, the unit of analysis is the option installers were presented with.
+
+Table and Figure 2.8a show the distribution for all installers.
+
+```{r}
+# Question 16a
+# Turn list into character so r can read the different answers
+data$x16a_answer1 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x16a_answer2 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+data$x16a_answer3 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[3]))
+data$x16a_answer4 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[4]))
+data$x16a_answer5 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[5])) 
+data$x16a_answer6 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[6])) 
+data$x16a_answer7 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[7]))
+data$x16a_answer8 <- sapply(data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[8])) # No respondent selected more than 7 options for question 16a
+# Check using: table(data$answer)
+
+# Create dummy for each possible option
+# Air-source
+data <- data %>% 
+  mutate(dummy_air_source_16a = ifelse(str_detect(x16a_answer1, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16a_answer2, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16a_answer3, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16a_answer4, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16a_answer5, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16a_answer6, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16a_answer7, fixed("Air-source (air-to-water) heat pump")), 1, 0))
+
+# Air-to-air heat pump
+data <- data %>% 
+  mutate(dummy_air_air_16a = ifelse(str_detect(x16a_answer1, "Air-to-air heat pump") |
+                                   str_detect(x16a_answer2, "Air-to-air heat pump") |
+                                   str_detect(x16a_answer3, "Air-to-air heat pump") |
+                                   str_detect(x16a_answer4, "Air-to-air heat pump") |
+                                   str_detect(x16a_answer5, "Air-to-air heat pump") |
+                                   str_detect(x16a_answer6, "Air-to-air heat pump") |
+                                   str_detect(x16a_answer7, "Air-to-air heat pump"), 1, 0))
+
+# Ground-source heat pump
+data <- data %>% 
+  mutate(dummy_ground_source_16a = ifelse(str_detect(x16a_answer1, "Ground-source heat pump") |
+                                   str_detect(x16a_answer2, "Ground-source heat pump") |
+                                   str_detect(x16a_answer3, "Ground-source heat pump") |
+                                   str_detect(x16a_answer4, "Ground-source heat pump") |
+                                   str_detect(x16a_answer5, "Ground-source heat pump") |
+                                   str_detect(x16a_answer6, "Ground-source heat pump") |
+                                   str_detect(x16a_answer7, "Ground-source heat pump"), 1, 0))
+
+# Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)
+data <- data %>% 
+  mutate(dummy_hybrid_air_source_16a = ifelse(str_detect(x16a_answer1, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer2, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer3, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer4, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer5, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer6, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer7, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")), 1, 0))
+
+# Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)
+data <- data %>% 
+  mutate(dummy_hybrid_ground_source_16a = ifelse(str_detect(x16a_answer1, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer2, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer3, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer4, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer5, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer6, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16a_answer7, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")), 1, 0))
+
+# Heat pumps for shared ground loops
+data <- data %>% 
+  mutate(dummy_ground_loops_16a = ifelse(str_detect(x16a_answer1, "Heat pumps for shared ground loops") |
+                                   str_detect(x16a_answer2, "Heat pumps for shared ground loops") |
+                                   str_detect(x16a_answer3, "Heat pumps for shared ground loops") |
+                                   str_detect(x16a_answer4, "Heat pumps for shared ground loops") |
+                                   str_detect(x16a_answer5, "Heat pumps for shared ground loops") |
+                                   str_detect(x16a_answer6, "Heat pumps for shared ground loops") |
+                                   str_detect(x16a_answer7, "Heat pumps for shared ground loops"), 1, 0))
+
+# Heat pumps for communal heating systems (air source or ground source)
+data <- data %>% 
+  mutate(dummy_communal_heating_16a = ifelse(str_detect(x16a_answer1, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16a_answer2, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16a_answer3, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16a_answer4, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16a_answer5, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16a_answer6, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16a_answer7, fixed("Heat pumps for communal heating systems (air source or ground source)")), 1, 0))
+
+# Water-source heat pump
+data <- data %>% 
+  mutate(dummy_water_source_16a = ifelse(str_detect(x16a_answer1, "Water-source heat pump") |
+                                   str_detect(x16a_answer2, "Water-source heat pump") |
+                                   str_detect(x16a_answer3, "Water-source heat pump") |
+                                   str_detect(x16a_answer4, "Water-source heat pump") |
+                                   str_detect(x16a_answer5, "Water-source heat pump") |
+                                   str_detect(x16a_answer6, "Water-source heat pump") |
+                                   str_detect(x16a_answer7, "Water-source heat pump"), 1, 0))
+
+# Other
+data <- data %>% 
+  mutate(dummy_other_16a = ifelse(str_detect(x16a_answer1, "Other") |
+                                   str_detect(x16a_answer2, "Other") |
+                                   str_detect(x16a_answer3, "Other") |
+                                   str_detect(x16a_answer4, "Other") |
+                                   str_detect(x16a_answer5, "Other") |
+                                   str_detect(x16a_answer6, "Other") |
+                                   str_detect(x16a_answer7, "Other"), 1, 0))
+# Question 16b
+# Turn list into character so r can read the different answers
+data$x16b_answer1 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
+data$x16b_answer2 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[2]))
+data$x16b_answer3 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[3]))
+data$x16b_answer4 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[4]))
+data$x16b_answer5 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[5])) 
+data$x16b_answer6 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[6])) 
+data$x16b_answer7 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[7]))
+data$x16b_answer8 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[8]))
+data$x16b_answer9 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[9]))
+data$x16b_answer10 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[10]))
+# No respondent selected more than 9 options for question 16b
+# Check using: table(data$answer)
+
+# Create dummy for each possible option
+# Air-source
+data <- data %>% 
+  mutate(dummy_air_source_16b = ifelse(str_detect(x16b_answer1, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer2, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer3, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer4, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer5, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer6, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer7, fixed("Air-source (air-to-water) heat pump")) |
+                                   str_detect(x16b_answer8, fixed("Air-source (air-to-water) heat pump")) |                                 
+                                   str_detect(x16b_answer9, fixed("Air-source (air-to-water) heat pump")), 1, 0))
+
+# Air-to-air heat pump
+data <- data %>% 
+  mutate(dummy_air_air_16b = ifelse(str_detect(x16b_answer1, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer2, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer3, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer4, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer5, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer6, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer7, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer8, "Air-to-air heat pump") |
+                                   str_detect(x16b_answer9, "Air-to-air heat pump"), 1, 0))
+
+# Ground-source heat pump
+data <- data %>% 
+  mutate(dummy_ground_source_16b = ifelse(str_detect(x16b_answer1, "Ground-source heat pump") |
+                                   str_detect(x16b_answer2, "Ground-source heat pump") |
+                                   str_detect(x16b_answer3, "Ground-source heat pump") |
+                                   str_detect(x16b_answer4, "Ground-source heat pump") |
+                                   str_detect(x16b_answer5, "Ground-source heat pump") |
+                                   str_detect(x16b_answer6, "Ground-source heat pump") |
+                                   str_detect(x16b_answer7, "Ground-source heat pump") |
+                                   str_detect(x16b_answer8, "Ground-source heat pump") |
+                                   str_detect(x16b_answer9, "Ground-source heat pump"), 1, 0))
+
+# Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)
+data <- data %>% 
+  mutate(dummy_hybrid_air_source_16b = ifelse(str_detect(x16b_answer1, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer2, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer3, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer4, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer5, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer6, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer7, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer8, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer9, fixed("Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")), 1, 0))
+
+# Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)
+data <- data %>% 
+  mutate(dummy_hybrid_ground_source_16b = ifelse(str_detect(x16b_answer1, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer2, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer3, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer4, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer5, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer6, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer7, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer8, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")) |
+                                   str_detect(x16b_answer9, fixed("Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)")), 1, 0))
+
+# Heat pumps for shared ground loops
+data <- data %>% 
+  mutate(dummy_ground_loops_16b = ifelse(str_detect(x16b_answer1, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer2, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer3, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer4, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer5, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer6, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer7, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer8, "Heat pumps for shared ground loops") |
+                                   str_detect(x16b_answer9, "Heat pumps for shared ground loops"), 1, 0))
+
+# Heat pumps for communal heating systems (air source or ground source)
+data <- data %>% 
+  mutate(dummy_communal_heating_16b = ifelse(str_detect(x16b_answer1, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer2, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer3, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer4, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer5, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer6, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer7, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer8, fixed("Heat pumps for communal heating systems (air source or ground source)")) |
+                                   str_detect(x16b_answer9, fixed("Heat pumps for communal heating systems (air source or ground source)")), 1, 0))
+
+# Water-source heat pump
+data <- data %>% 
+  mutate(dummy_water_source_16b = ifelse(str_detect(x16b_answer1, "Water-source heat pump") |
+                                   str_detect(x16b_answer2, "Water-source heat pump") |
+                                   str_detect(x16b_answer3, "Water-source heat pump") |
+                                   str_detect(x16b_answer4, "Water-source heat pump") |
+                                   str_detect(x16b_answer5, "Water-source heat pump") |
+                                   str_detect(x16b_answer6, "Water-source heat pump") |
+                                   str_detect(x16b_answer7, "Water-source heat pump") |
+                                   str_detect(x16b_answer8, "Water-source heat pump") |
+                                   str_detect(x16b_answer9, "Water-source heat pump"), 1, 0))
+
+# Other
+data <- data %>% 
+  mutate(dummy_other_16b = ifelse(str_detect(x16b_answer1, "Other") |
+                                   str_detect(x16b_answer2, "Other") |
+                                   str_detect(x16b_answer3, "Other") |
+                                   str_detect(x16b_answer4, "Other") |
+                                   str_detect(x16b_answer5, "Other") |
+                                   str_detect(x16b_answer6, "Other") |
+                                   str_detect(x16b_answer7, "Other") |
+                                   str_detect(x16b_answer8, "Other") |
+                                   str_detect(x16b_answer9, "Other"), 1, 0))
+
+# Merge each dummy for type of heat pump across 16a and 16b to get the distribution for all installers
+data <- data %>% 
+  mutate(dummy_air_source_all = coalesce(dummy_air_source_16a, dummy_air_source_16b))
+data <- data %>% 
+  mutate(dummy_air_air_all = coalesce(dummy_air_air_16a, dummy_air_air_16b))
+data <- data %>% 
+  mutate(dummy_ground_source_all = coalesce(dummy_ground_source_16a, dummy_ground_source_16b))
+data <- data %>% 
+  mutate(dummy_hybrid_air_source_all = coalesce(dummy_hybrid_air_source_16a, dummy_hybrid_air_source_16b))
+data <- data %>% 
+  mutate(dummy_hybrid_ground_source_all = coalesce(dummy_hybrid_ground_source_16a, dummy_hybrid_ground_source_16b))
+data <- data %>% 
+  mutate(dummy_ground_loops_all = coalesce(dummy_ground_loops_16a, dummy_ground_loops_16b))
+data <- data %>% 
+  mutate(dummy_communal_heating_all = coalesce(dummy_communal_heating_16a, dummy_communal_heating_16b))
+data <- data %>% 
+  mutate(dummy_water_source_all = coalesce(dummy_water_source_16a, dummy_water_source_16b))
+data <- data %>% 
+  mutate(dummy_other_all = coalesce(dummy_other_16a, dummy_other_16b))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_air_source_all", "dummy_air_air_all", "dummy_ground_source_all", "dummy_hybrid_air_source_all", "dummy_hybrid_ground_source_all", "dummy_ground_loops_all", "dummy_communal_heating_all", "dummy_water_source_all", "dummy_other_all")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")
+
+# Create data frame to produce the table
+summary_table <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 2.8a. The types of heat pumps have survey participants installed over the last 12 months (all installers)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.8a. The types of heat pumps have survey participants installed over the last 12 months (all installers)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 340, by = 40)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+Tables and Figures 2.8b o 2.8e show the distribution for different employment type: sole traders, company owners, employees and contractors.
+
+```{r}
+subset_soletraders <- data %>% 
+  filter(employment_type == "Sole trader")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_1 <- subset_soletraders %>%
+  select("dummy_air_source_all", "dummy_air_air_all", "dummy_ground_source_all", "dummy_hybrid_air_source_all", "dummy_hybrid_ground_source_all", "dummy_ground_loops_all", "dummy_communal_heating_all", "dummy_water_source_all", "dummy_other_all")
+
+# Summarise the distribution
+summary_table_1 <- subset_dummy_1 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")
+
+# Create data frame to produce the table
+summary_table_1 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_1)))
+
+# Create table
+kable(summary_table_1,
+      caption = "Table 2.8b. The types of heat pumps have survey participants installed over the last 12 months (sole traders)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_1 <- subset_dummy_1 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_1 <- subset_dummy_1 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_1 <- tidyr::gather(summary_table_1, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_1, aes(x = factor(dummy_variable, levels = c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.8b. The types of heat pumps have survey participants installed over the last 12 months (sole traders)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+```{r}
+subset_company_owners <- data %>% 
+  filter(employment_type == "Company owner")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_2 <- subset_company_owners %>%
+  select("dummy_air_source_all", "dummy_air_air_all", "dummy_ground_source_all", "dummy_hybrid_air_source_all", "dummy_hybrid_ground_source_all", "dummy_ground_loops_all", "dummy_communal_heating_all", "dummy_water_source_all", "dummy_other_all")
+
+# Summarise the distribution
+summary_table_2 <- subset_dummy_2 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")
+
+# Create data frame to produce the table
+summary_table_2 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_2)))
+
+# Create table
+kable(summary_table_2,
+      caption = "Table 2.8c. The types of heat pumps have survey participants installed over the last 12 months (company owners)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_2 <- subset_dummy_2 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_2 <- subset_dummy_2 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_2 <- tidyr::gather(summary_table_2, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_2, aes(x = factor(dummy_variable, levels = c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.8c. The types of heat pumps have survey participants installed over the last 12 months (company owners)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 160, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+```{r}
+subset_employees <- data %>% 
+  filter(employment_type == "Employee")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_3 <- subset_employees %>%
+  select("dummy_air_source_all", "dummy_air_air_all", "dummy_ground_source_all", "dummy_hybrid_air_source_all", "dummy_hybrid_ground_source_all", "dummy_ground_loops_all", "dummy_communal_heating_all", "dummy_water_source_all", "dummy_other_all")
+
+# Summarise the distribution
+summary_table_3 <- subset_dummy_3 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")
+
+# Create data frame to produce the table
+summary_table_3 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_3)))
+
+# Create table
+kable(summary_table_3,
+      caption = "Table 2.8d. The types of heat pumps have survey participants installed over the last 12 months (employees)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_3 <- subset_dummy_3 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_3 <- subset_dummy_3 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_3 <- tidyr::gather(summary_table_3, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_3, aes(x = factor(dummy_variable, levels = c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.8d. The types of heat pumps have survey participants installed over the last 12 months (employees)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 110, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+```{r}
+subset_contractors <- data %>% 
+  filter(employment_type == "Contractor or freelancer")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_4 <- subset_contractors %>%
+  select("dummy_air_source_all", "dummy_air_air_all", "dummy_ground_source_all", "dummy_hybrid_air_source_all", "dummy_hybrid_ground_source_all", "dummy_ground_loops_all", "dummy_communal_heating_all", "dummy_water_source_all", "dummy_other_all")
+
+# Summarise the distribution
+summary_table_4 <- subset_dummy_4 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")
+
+# Create data frame to produce the table
+summary_table_4 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_4)))
+
+# Create table
+kable(summary_table_4,
+      caption = "Table 2.8e. The types of heat pumps have survey participants installed over the last 12 months (contractors)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_4 <- subset_dummy_4 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_4 <- subset_dummy_4 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_4 <- tidyr::gather(summary_table_4, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_4, aes(x = factor(dummy_variable, levels = c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.8e. The types of heat pumps have survey participants installed over the last 12 months (Contractors)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+#### 2.09 \| What type of heat pump have survey participants installed most often over the last 12 months?
+
+In the survey, company owners were asked question 17a, while sole traders, employees, and contractors were asked question 17b. The difference across these two questions lies in the slightly different formulation (asking about the company's work vs the individual's work). Given that answers were the same, Table and Figure 2.9 provide the distribution for all categories of installers together to give the overall distribution of survey respondents.
+
+```{r}
+# Duplicate variable for q17a
+data$x17a_what_type_of_heat_pump_has_your_company_installed_most_often_over_the_last_12_months_please_select_one_option_bis <- data$x17a_what_type_of_heat_pump_has_your_company_installed_most_often_over_the_last_12_months_please_select_one_option
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x17a_what_type_of_heat_pump_has_your_company_installed_most_often_over_the_last_12_months_please_select_one_option_bis = 
+      recode(x17a_what_type_of_heat_pump_has_your_company_installed_most_often_over_the_last_12_months_please_select_one_option_bis,
+        "Not asked" = NA_character_))
+
+# Duplicate variable for q17b
+data$x17b_what_type_of_heat_pump_have_you_installed_most_often_over_the_last_12_months_please_select_one_option_bis <- data$x17b_what_type_of_heat_pump_have_you_installed_most_often_over_the_last_12_months_please_select_one_option
+
+# Exclude "Not asked" values (turn into NA)
+data <- data %>%
+  mutate(x17b_what_type_of_heat_pump_have_you_installed_most_often_over_the_last_12_months_please_select_one_option_bis = 
+      recode(x17b_what_type_of_heat_pump_have_you_installed_most_often_over_the_last_12_months_please_select_one_option_bis,
+        "Not asked" = NA_character_))
+
+# Create a new variable that combines the answers for questions 17a and 17b
+data <- data %>% 
+  mutate(x17c_all_installers = coalesce(x17a_what_type_of_heat_pump_has_your_company_installed_most_often_over_the_last_12_months_please_select_one_option_bis, x17b_what_type_of_heat_pump_have_you_installed_most_often_over_the_last_12_months_please_select_one_option_bis))
+
+# Clean "other" values to have all of them in a single category
+data <- data %>% 
+  mutate(x17c_all_installers = case_when(x17c_all_installers == "Other (please specify)" ~ "Other", TRUE ~ as.character(x17c_all_installers)))
+
+# Set order of the values for consistency with prior graphs
+data <- data %>% 
+  mutate(x17c_all_installers = factor(x17c_all_installers,
+                                      levels = c("Air-source (air-to-water) heat pump",
+                                                 "Air-to-air heat pump",
+                                                 "Ground-source heat pump",
+                                                 "Heat pumps for shared ground loops",
+                                                 "Hybrid air-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)",
+                                                 "Hybrid ground-source heat pump (e.g. a heat pump and gas/oil powered unit(s), combined or separate)",
+                                                 "Water-source heat pump",
+                                                 "Other")))
+
+# Create table
+table <- table(data$x17c_all_installers)
+kable(table, 
+      caption = "Table 2.9a. Type of heat pump most often installed (all installers)", 
+      col.names = c("Type of heat pump", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Plot the distribution
+ggplot(data, aes(x = x17c_all_installers)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.9a. Type of heat pump most often installed (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 300, by = 50)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+Although this distribution suggests that there won't be difference across employment type, we examine the patterns across different employment type (binary). There is in fact no significant difference in the distribution across the two employment categories.
+
+```{r}
+# Create table for breakdown by employment type 
+table <- xtabs(~ x17c_all_installers + dummy_employment_type, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Company owner or sole trader",
+                        "Employee or contractor")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.9b. Type of heat pump most often installed by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+#### 2.10 \| Do survey participants offer heat batteries to accompany their heat pump installations?
+
+Table and Figure 2.10a summarise the ratio of installers in the survey who offer heat batteries to accompany their heat pump installations.
+
+```{r}
+table <- table(data$x18_do_you_offer_heat_batteries_to_accompany_your_heat_pump_installations)
+kable(table, 
+      caption = "Table 2.10a. Heat batteries offered to accompany heat pumps (all installers)", 
+      col.names = c("Answer", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = x18_do_you_offer_heat_batteries_to_accompany_your_heat_pump_installations)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.10a. Heat batteries offered to accompany heat pumps (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 280, by = 40))
+```
+
+Table and Figure 2.10b show the distribution by employment type: sole traders, company owners, employees, and contractors.
+
+```{r}
+# Create table for breakdown by employment type 
+table <- xtabs(~ employment_type + x18_do_you_offer_heat_batteries_to_accompany_your_heat_pump_installations, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Yes",
+                        "No",
+                        "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.10b. Heat batteries offered to accompany heat pumps by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + x18_do_you_offer_heat_batteries_to_accompany_your_heat_pump_installations, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Yes",
+                        "No",
+                        "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Heat batteries", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Yes",
+                  "No",
+                  "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Heat batteries`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.10b. Heat batteries offered to accompany heat pumps by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 130, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Heat batteries`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.10b. Heat batteries offered to accompany heat pumps by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 260, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 2.10c show the distribution by employment type (binary classification).
+
+```{r}
+# Create table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + x18_do_you_offer_heat_batteries_to_accompany_your_heat_pump_installations, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Yes",
+                        "No",
+                        "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.10c. Heat batteries offered to accompany heat pumps by employment type (binary)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + x18_do_you_offer_heat_batteries_to_accompany_your_heat_pump_installations, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Yes",
+                        "No",
+                        "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Heat batteries", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Yes",
+                  "No",
+                  "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Heat batteries`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.10c. Heat batteries offered to accompany heat pumps by employment type (binary)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 180, by = 20)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Heat batteries`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.10c. Heat batteries offered to accompany heat pumps by employment type (binary)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 250, by = 40)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+#### 2.11 \| What barriers prevent heat pump installers from offering heat batteries as part of their installations?
+
+The installers who declared that they do not offer heat batteries as part of their heat pump installations (261 respondents of 345) were asked about the barriers that prevent them from doing so. Table and Figure 2.11a show the distribution. For this question installers were asked to select the different options that apply.
+
+```{r}
+# Turn list into character so r can read the different answers
+data$x19_answer1 <- sapply(data$x19_what_barriers_prevent_you_from_offering_heat_batteries_you_can_select_up_to_3_options, function(x) as.character(x[1]))
+data$x19_answer2 <- sapply(data$x19_what_barriers_prevent_you_from_offering_heat_batteries_you_can_select_up_to_3_options, function(x) as.character(x[2]))
+data$x19_answer3 <- sapply(data$x19_what_barriers_prevent_you_from_offering_heat_batteries_you_can_select_up_to_3_options, function(x) as.character(x[3]))
+data$x19_answer4 <- sapply(data$x19_what_barriers_prevent_you_from_offering_heat_batteries_you_can_select_up_to_3_options, function(x) as.character(x[4]))
+data$x19_answer5 <- sapply(data$x19_what_barriers_prevent_you_from_offering_heat_batteries_you_can_select_up_to_3_options, function(x) as.character(x[5]))
+data$x19_answer6 <- sapply(data$x19_what_barriers_prevent_you_from_offering_heat_batteries_you_can_select_up_to_3_options, function(x) as.character(x[6]))
+# Check using: table(data$answer)
+
+# Create dummy for each possible option
+data <- data %>% 
+  mutate(dummy_customer_demand = ifelse(str_detect(x19_answer1, "Lack of customer demand") |
+                                        str_detect(x19_answer2, "Lack of customer demand") |
+                                        str_detect(x19_answer3, "Lack of customer demand") |
+                                        str_detect(x19_answer4, "Lack of customer demand") |
+                                        str_detect(x19_answer5, "Lack of customer demand"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_no_knowledge = ifelse(str_detect(x19_answer1, "I don’t have the required knowledge or training") |
+                                        str_detect(x19_answer2, "I don’t have the required knowledge or training") |
+                                        str_detect(x19_answer3, "I don’t have the required knowledge or training") |
+                                        str_detect(x19_answer4, "I don’t have the required knowledge or training") |
+                                        str_detect(x19_answer5, "I don’t have the required knowledge or training"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_installation_difficulties = ifelse(str_detect(x19_answer1, "Installation difficulties") |
+                                        str_detect(x19_answer2, "Installation difficulties") |
+                                        str_detect(x19_answer3, "Installation difficulties") |
+                                        str_detect(x19_answer4, "Installation difficulties") |
+                                        str_detect(x19_answer5, "Installation difficulties"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_cost_batteries = ifelse(str_detect(x19_answer1, "Cost of the heat battery and associated materials") |
+                                        str_detect(x19_answer2, "Cost of the heat battery and associated materials") |
+                                        str_detect(x19_answer3, "Cost of the heat battery and associated materials") |
+                                        str_detect(x19_answer4, "Cost of the heat battery and associated materials") |
+                                        str_detect(x19_answer5, "Cost of the heat battery and associated materials"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_time_taken = ifelse(str_detect(x19_answer1, "Time it takes to install a heat battery") |
+                                        str_detect(x19_answer2, "Time it takes to install a heat battery") |
+                                        str_detect(x19_answer3, "Time it takes to install a heat battery") |
+                                        str_detect(x19_answer4, "Time it takes to install a heat battery") |
+                                        str_detect(x19_answer5, "Time it takes to install a heat battery"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_gov_funding = ifelse(str_detect(x19_answer1, "Compatibility with government funding") |
+                                        str_detect(x19_answer2, "Compatibility with government funding") |
+                                        str_detect(x19_answer3, "Compatibility with government funding") |
+                                        str_detect(x19_answer4, "Compatibility with government funding") |
+                                        str_detect(x19_answer5, "Compatibility with government funding"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_other = ifelse(str_detect(x19_answer1, "Other") |
+                                        str_detect(x19_answer2, "Other") |
+                                        str_detect(x19_answer3, "Other") |
+                                        str_detect(x19_answer4, "Other") |
+                                        str_detect(x19_answer5, "Other"), 1, 0))
+
+data <- data %>% 
+  mutate(dummy_dont_know = ifelse(str_detect(x19_answer1, "Don't know") |
+                                        str_detect(x19_answer2, "Don't know") |
+                                        str_detect(x19_answer3, "Don't know") |
+                                        str_detect(x19_answer4, "Don't know") |
+                                        str_detect(x19_answer5, "Don't know"), 1, 0))
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy <- data %>%
+  select("dummy_customer_demand", "dummy_no_knowledge", "dummy_installation_difficulties", "dummy_cost_batteries", "dummy_time_taken", "dummy_gov_funding", "dummy_other", "dummy_dont_know")
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")
+
+# Create data frame to produce the table
+summary_table <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table)))
+
+# Create table
+kable(summary_table,
+      caption = "Table 2.11a. Barriers to providing heat batteries (all installers)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy <- subset_dummy %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table <- subset_dummy %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.11a. Barriers to providing heat batteries (all installers)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 120, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+Next, we want to know if barriers differ for different types of installers based on their employment type: sole trader, company owner, employee, and contractor. Tables and Figures 2.11b to 2.11.e provide the respective distribution.
+
+```{r}
+subset_soletraders <- data %>% 
+  filter(employment_type == "Sole trader")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_1 <- subset_soletraders %>%
+  select("dummy_customer_demand", "dummy_no_knowledge", "dummy_installation_difficulties", "dummy_cost_batteries", "dummy_time_taken", "dummy_gov_funding", "dummy_other", "dummy_dont_know")
+
+# Summarise the distribution
+summary_table_1 <- subset_dummy_1 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")
+
+# Create data frame to produce the table
+summary_table_1 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_1)))
+
+# Create table
+kable(summary_table_1,
+      caption = "Table 2.11b. Barriers to providing heat batteries (sole traders)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_1 <- subset_dummy_1 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_1 <- subset_dummy_1 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_1 <- tidyr::gather(summary_table_1, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_1, aes(x = factor(dummy_variable, levels = c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.11b. Barriers to providing heat batteries (sole traders)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+```{r}
+subset_company_owners <- data %>% 
+  filter(employment_type == "Company owner")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_2 <- subset_company_owners %>%
+  select("dummy_customer_demand", "dummy_no_knowledge", "dummy_installation_difficulties", "dummy_cost_batteries", "dummy_time_taken", "dummy_gov_funding", "dummy_other", "dummy_dont_know")
+
+# Summarise the distribution
+summary_table_2 <- subset_dummy_2 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")
+
+# Create data frame to produce the table
+summary_table_2 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_2)))
+
+# Create table
+kable(summary_table_2,
+      caption = "Table 2.11c. Barriers to providing heat batteries (company owners)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_2 <- subset_dummy_2 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_2 <- subset_dummy_2 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_2 <- tidyr::gather(summary_table_2, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_2, aes(x = factor(dummy_variable, levels = c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.11c. Barriers to providing heat batteries (company owners)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 70, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+```{r}
+subset_employees <- data %>% 
+  filter(employment_type == "Employee")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_3 <- subset_employees %>%
+  select("dummy_customer_demand", "dummy_no_knowledge", "dummy_installation_difficulties", "dummy_cost_batteries", "dummy_time_taken", "dummy_gov_funding", "dummy_other", "dummy_dont_know")
+
+# Summarise the distribution
+summary_table_3 <- subset_dummy_3 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")
+
+# Create data frame to produce the table
+summary_table_3 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_3)))
+
+# Create table
+kable(summary_table_3,
+      caption = "Table 2.11d. Barriers to providing heat batteries (employees)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_3 <- subset_dummy_3 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_3 <- subset_dummy_3 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_3 <- tidyr::gather(summary_table_3, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_3, aes(x = factor(dummy_variable, levels = c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.11d. Barriers to providing heat batteries (employees)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 40, by = 5)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+```{r}
+subset_contractors <- data %>% 
+  filter(employment_type == "Contractor or freelancer")
+
+# Create a new dataframe with only the dummy variables above
+subset_dummy_4 <- subset_contractors %>%
+  select("dummy_customer_demand", "dummy_no_knowledge", "dummy_installation_difficulties", "dummy_cost_batteries", "dummy_time_taken", "dummy_gov_funding", "dummy_other", "dummy_dont_know")
+
+# Summarise the distribution
+summary_table_4 <- subset_dummy_4 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Rename variables in the subset
+new_names <- c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")
+
+# Create data frame to produce the table
+summary_table_4 <- data.frame(Dummy_Variable = new_names, Frequency = as.vector(t(summary_table_4)))
+
+# Create table
+kable(summary_table_4,
+      caption = "Table 2.11e. Barriers to providing heat batteries (contractors)",
+      col.names = c("Ways of working", "Frequency"),
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+# Create plot of distribution
+# Rename variables in the subset for clear display in plot
+subset_dummy_4 <- subset_dummy_4 %>%
+  rename_all(~ new_names)
+
+# Summarise the distribution
+summary_table_4 <- subset_dummy_4 %>%
+  summarise_all(~ sum(. == 1, na.rm = TRUE))
+
+# Create object to produce plot
+summary_long_4 <- tidyr::gather(summary_table_4, key = "dummy_variable", value = "count")
+
+# Produce plot
+ggplot(summary_long_4, aes(x = factor(dummy_variable, levels = c("Lack of customer demand",
+               "I don’t have the required knowledge or training", 
+               "Installation difficulties",
+               "Cost of the heat battery and associated materials",
+               "Time it takes to install a heat battery",
+               "Compatibility with government funding",
+               "Other",
+               "Don't know")), y = count)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Figure 2.11e. Barriers to providing heat batteries (Contractors)", x = "", y = "Frequency") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 16, by = 2)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10))
+```
+
+#### 2.12 \| What is the most important factor for heat pump installers when choosing a thermal store or hot water system?
+
+Table and Figure 2.12a summarise what installers in the survey consider to be the most important factor for heat pump installations when choosing a thermal store or hot water system.
+
+```{r}
+table <- table(data$x20_if_a_customer_doesn_t_specify_what_they_want_with_their_heat_pump_what_is_the_most_important_factor_for_you_when_choosing_which_thermal_store_or_hot_water_system_to_fit_please_select_one_option)
+kable(table, 
+      caption = "Table 2.12a. Most important factor when choosing most appropriate hot water system (all installers)", 
+      col.names = c("Hot water systems", "Frequency"), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+```
+
+```{r}
+ggplot(data, aes(x = x20_if_a_customer_doesn_t_specify_what_they_want_with_their_heat_pump_what_is_the_most_important_factor_for_you_when_choosing_which_thermal_store_or_hot_water_system_to_fit_please_select_one_option)) +
+  geom_bar(fill = "blue") +
+  labs(title = "Figure 2.12a. Most important factor when choosing most appropriate hot water system (all installers)", 
+       x = "", 
+       y = "Count") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 140, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 15))
+```
+
+Table and Figure 2.12b show the distribution by employment type: sole traders, company owners, employees, and contractors.
+
+```{r}
+# Create table for breakdown by employment type 
+table <- xtabs(~ employment_type + x20_if_a_customer_doesn_t_specify_what_they_want_with_their_heat_pump_what_is_the_most_important_factor_for_you_when_choosing_which_thermal_store_or_hot_water_system_to_fit_please_select_one_option, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Size/space required in the home",
+                        "Unit made by manufacturer I trust/regularly use",
+                        "Efficiency/energy rating",
+                        "Heat loss rate",
+                        "Price of the unit/system",
+                        "Other",
+                        "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.12b. Most important factor when choosing most appropriate hot water system by employment type",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ employment_type + x20_if_a_customer_doesn_t_specify_what_they_want_with_their_heat_pump_what_is_the_most_important_factor_for_you_when_choosing_which_thermal_store_or_hot_water_system_to_fit_please_select_one_option, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Size/ space required in the home",
+                        "Unit made by manufacturer I trust/ regularly use",
+                        "Efficiency/ energy rating",
+                        "Heat loss rate",
+                        "Price of the unit/ system",
+                        "Other",
+                        "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Important factor", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Size/ space required in the home",
+                  "Unit made by manufacturer I trust/ regularly use",
+                  "Efficiency/ energy rating",
+                  "Heat loss rate",
+                  "Price of the unit/ system",
+                  "Other",
+                  "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Important factor`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure  2.12b. Most important factor when choosing most appropriate hot water system by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Important factor`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure  2.12b. Most important factor when choosing most appropriate hot water system by employment type",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 140, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+Table and Figure 2.12c show the distribution by employment type (binary classification).
+
+```{r}
+# Create table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + x20_if_a_customer_doesn_t_specify_what_they_want_with_their_heat_pump_what_is_the_most_important_factor_for_you_when_choosing_which_thermal_store_or_hot_water_system_to_fit_please_select_one_option, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Size/ space required in the home",
+                        "Unit made by manufacturer I trust/ regularly use",
+                        "Efficiency/ energy rating",
+                        "Heat loss rate",
+                        "Price of the unit/ system",
+                        "Other",
+                        "Don't know")
+
+# Create the table
+kable(table_df, 
+      caption = "Table 2.12c. Most important factor when choosing most appropriate hot water system by employment type (binary)",
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = T,
+                html_font = "Arial") %>%
+  row_spec(0, bold = TRUE)
+```
+
+```{r}
+# Create plot #
+# Table for breakdown by employment type 
+table <- xtabs(~ dummy_employment_type + x20_if_a_customer_doesn_t_specify_what_they_want_with_their_heat_pump_what_is_the_most_important_factor_for_you_when_choosing_which_thermal_store_or_hot_water_system_to_fit_please_select_one_option, data)
+
+# Combine the list elements into a data frame
+table_df <- as.data.frame.matrix(table)
+
+# Rename the columns for better display
+colnames(table_df) <- c("Size/ space required in the home",
+                        "Unit made by manufacturer I trust/ regularly use",
+                        "Efficiency/ energy rating",
+                        "Heat loss rate",
+                        "Price of the unit/ system",
+                        "Other",
+                        "Don't know")
+
+# Add employment_type as a column
+table_df$EmploymentType <- rownames(table_df)
+
+# Reshape the data to long format for ggplot
+table_long <- gather(table_df, key = "Important factor", value = "Frequency", -EmploymentType)
+
+# Define the order of the x-axis labels
+order_labels <- c("Size/ space required in the home",
+                  "Unit made by manufacturer I trust/ regularly use",
+                  "Efficiency/ energy rating",
+                  "Heat loss rate",
+                  "Price of the unit/ system",
+                  "Other",
+                  "Don't know")
+
+# Create a ggplot bar plot
+ggplot(table_long, aes(x = factor(`Important factor`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Figure 2.12c. Most important factor when choosing most appropriate hot water system by employment type (binary)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+```{r}
+# Alternative plot
+ggplot(table_long, aes(x = factor(`Important factor`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Figure 2.12c. Most important factor when choosing most appropriate hot water system by employment type (binary)",
+       x = "",
+       y = "Frequency",
+       fill = "Employment type") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 160, by = 20)) +
+  scale_x_discrete(labels = label_wrap_gen(width = 10)) +
+  scale_fill_manual(values = wes_palette("Zissou1"))
+```
+
+See Section 3 for the next part of the installer survey analysis.
+
+To generate output: rmarkdown::render("G:\\My Drive\\Installer survey\\Installer survey - Section 2.Rmd")
+
