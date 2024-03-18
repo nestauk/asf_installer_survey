@@ -6,6 +6,9 @@
 - Not sure why you duplicate variables before making a table? You could just use a pipe.
 - I prefer using filter instead of square brackets when subsetting - it's more compatible with pipes if you're using tidyverse
 - It doesn't look like scale_y_continuous in working in the first graph
+- I personally prefer tabyl over xtabs / table
+- 749 / 835 - you have already made a variable denoting order in 749, so you don't need to repeat it in 835. You could make bespoke names for each grouping and refer back to them.
+
 
 
 ### Errors

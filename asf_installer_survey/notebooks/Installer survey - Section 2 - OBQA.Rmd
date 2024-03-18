@@ -522,7 +522,7 @@ Example function below.
 ### OBQA
 
 # Define function
-make_graph_count <- function(var, caption, breakline) {
+make_graph_count <- function(var, caption, breakline, drop) {
   
   # Calculate maximum bar size
   max_height <- data |>
@@ -556,11 +556,11 @@ make_graph_count <- function(var, caption, breakline) {
         vjust = -0.5) +
       theme_bw() +
       scale_y_continuous(labels = waiver(), limits = c(0, max_height), n.breaks = max_height / 20 + 1) +
-      scale_x_discrete(labels = label_wrap_gen(width = 15))
+      scale_x_discrete(labels = label_wrap_gen(width = 15), drop = drop)
 }
 
 make_graph_count("x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of",
-           "QA", 20)
+           "QA", 20, TRUE)
 
 ```
 
@@ -616,7 +616,7 @@ ggplot(data_filtered, aes(x = x12b_thinking_of_your_overall_heating_work_what_do
 
 ```{r}
 make_graph_count("x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of",
-                 "QA", 20)
+                 "QA", 20, TRUE)
 ```
 
 
@@ -625,15 +625,12 @@ In the survey, company owners were asked question 12a, while sole traders, emplo
 ```{r}
 # Create a new variable that combines the answers for questions 12a and 12b
 data <- data %>% 
-  mutate(x12c_all_installers = coalesce(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis,
-                                        x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis))
+mutate(x12c_all_installers = coalesce(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis, x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis))
 ```
 
 ```{r}
 ### OBQA
-data |> tabyl(x12c_all_installers, x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of)
-
-data |> tabyl(x12c_all_installers, x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of)
+data |> tabyl(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of, x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of)
 
 ```
 
@@ -651,6 +648,8 @@ kable(table,
   row_spec(0, bold = T)
 ```
 
+OBQA: Looks fine
+
 ```{r}
 ggplot(data, aes(x = x12c_all_installers)) +
   geom_bar(fill = "blue") +
@@ -661,6 +660,8 @@ ggplot(data, aes(x = x12c_all_installers)) +
   scale_y_continuous(breaks = seq(0, 190, by = 20)) +
   scale_x_discrete(labels = label_wrap_gen(width = 15))
 ```
+
+OBQA: Looks fine
 
 #### 2.02 \| What proportion of survey participants’ planned future work will be domestic or commercial?
 
@@ -690,6 +691,12 @@ kable(table,
 ```
 
 ```{r}
+### OBQA
+make_table("x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of", "QA", "QA", "QA")
+```
+
+
+```{r}
 # Figure 2.2a
 data_filtered <- data[!is.na(data$x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis),]
 ggplot(data_filtered, aes(x = x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis)) +
@@ -706,6 +713,14 @@ ggplot(data_filtered, aes(x = x13a_thinking_of_your_companys_overall_heating_wor
                               "Mostly domestic heating work, and some commercial heating work",
                               "Entirely domestic heating work, and no commercial heating work"))
 ```
+
+```{r}
+### OBQA
+make_graph_count("x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of", "QA", 20, FALSE)
+
+# Annoying about the Not asked....
+```
+
 
 ```{r}
 # Table 2.2b
@@ -731,6 +746,13 @@ kable(table,
 ```
 
 ```{r}
+### OBQA
+make_table("x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of", "QA", "QA", "QA")
+
+```
+
+
+```{r}
 # Figure 2.2b
 data_filtered <- data[!is.na(data$x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis),]
 ggplot(data_filtered, aes(x = x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of_bis)) +
@@ -742,6 +764,13 @@ ggplot(data_filtered, aes(x = x13b_thinking_of_your_overall_heating_work_in_12_m
   scale_y_continuous(breaks = seq(0, 100, by = 20)) +
   scale_x_discrete(labels = label_wrap_gen(width = 15))
 ```
+
+```{r}
+### OBQA
+make_graph_count("x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of", "QA", 20, TRUE)
+
+```
+
 
 ```{r}
 # Create a new variable that combines the answers for questions 13a and 13b
@@ -760,6 +789,8 @@ kable(table,
   row_spec(0, bold = T)
 ```
 
+OBQA: Looks fine
+
 ```{r}
 ggplot(data, aes(x = x13c_all_installers)) +
   geom_bar(fill = "blue") +
@@ -771,6 +802,8 @@ ggplot(data, aes(x = x13c_all_installers)) +
   scale_x_discrete(labels = label_wrap_gen(width = 15))
 ```
 
+OBQA: Looks fine
+
 #### 2.03 \| Are survey participants planning to change the proportion of their domestic or commercial heating work?
 
 Based on the previous patterns, we also want to know whether installers plan to change the proportion of commercial and domestic works. To do this, we crossed the answers for the questions about current and future heating work to create a new binary variable that takes the values 1 if change and 0 otherwise. Table and Figure 2.3a shows the distribution.
@@ -780,7 +813,18 @@ Based on the previous patterns, we also want to know whether installers plan to 
 data <- data %>%
   mutate(change_heating_work = ifelse(x12c_all_installers != x13c_all_installers, "Change", "No change"))
 data$change_heating_work <- as.factor(data$change_heating_work)
+```
 
+```{r}
+### OBQA
+data |>
+  filter(x12c_all_installers != x13c_all_installers) |>
+  nrow() ## n = 57
+
+```
+
+
+```{r}
 # Plot the distribution
 ggplot(data, aes(x = change_heating_work)) +
   geom_bar(fill = "blue") +
@@ -790,6 +834,8 @@ ggplot(data, aes(x = change_heating_work)) +
   theme_bw() +
   scale_y_continuous(breaks = seq(0, 300, by = 50))
 ```
+
+
 
 ```{r}
 # Alternative distribution with collapsed variable.
@@ -826,6 +872,67 @@ ggplot(data, aes(x = change_heating_work_collapsed)) +
   scale_y_continuous(breaks = seq(0, 300, by = 50))
 ```
 
+OBQA: Makes sense.
+
+A Sankey digram might be nice here
+
+```{r}
+### OBQA
+
+# Packages needed
+library(ggExtra) #------- Data Viz
+library(networkD3) #----- Sankey graphs
+
+# Creating Sankey
+sankey_data <- data |>
+    select(x12c_all_installers, x13c_all_installers)|>
+    rename(before = x12c_all_installers,
+           after = x13c_all_installers) |>
+      mutate(after = paste(after, "(post)")) |>
+      group_by(before, after) |>
+        summarise(n = n()) |>
+          ungroup()
+
+# Links
+links <- sankey_data |> 
+  rename(source = before,
+        target = after,
+        value = n)
+
+# Nodes
+nodes <- data.frame(
+  name = as.character(sankey_data$before) |>
+    unique()
+)
+
+## Duplicating for order
+nodes <- nodes |>
+  rbind(nodes) |>
+  mutate(name = case_when(
+    row_number() < 6 ~ name,
+    TRUE ~ paste(name, "(post)")
+  ))
+  
+
+# Making other variables necessary for sankey
+links$IDsource <- match(links$source, nodes$name)-1 
+links$IDtarget <- match(links$target, nodes$name)-1
+
+# Creating it
+sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "IDsource", Target = "IDtarget",
+                   Value = "value", NodeID = "name", 
+                   sinksRight = TRUE, fontSize = 12,
+                   fontFamily = "sans-serif",
+                   iterations = 0,
+                   colourScale = JS("d3.scaleOrdinal(d3.schemeCategory10);"))
+
+
+## Showing some change, but mostly the same.
+
+```
+
+
 For the installers who indicated that they will change their ratio of heating work, we also want to know what the change is. Table 2.3b show the distribution of change patterns of change installers' current ratio of commercial and domestic heating work.
 
 ```{r}
@@ -844,6 +951,15 @@ kable(change_distribution,
                 html_font = "Arial") %>%
   row_spec(0, bold = T)
 ```
+
+```{r}
+### OBQA
+data |>
+  filter(x12c_all_installers_collapsed != x13c_all_installers_collapsed) |>
+  tabyl(x12c_all_installers_collapsed, x13c_all_installers_collapsed)
+
+```
+
 
 #### 2.04 \| How do planned changes to the proportion of survey participants’ domestic or commercial heating work differ depending on the size of the company they work for or own?
 
@@ -865,6 +981,16 @@ kable(change_distribution,
                 full_width = T,
                 html_font = "Arial") %>%
   row_spec(0, bold = T)
+```
+
+
+
+```{r}
+### OBQA
+data |>
+  filter(x12c_all_installers_collapsed != x13c_all_installers_collapsed) |>
+  tabyl(x12c_all_installers_collapsed, x13c_all_installers_collapsed, employment_type)
+
 ```
 
 Table 2.4b provides the distribution by company size for employees.
@@ -890,6 +1016,16 @@ kable(change_distribution,
   row_spec(0, bold = T)
 ```
 
+```{r}
+### OBQA
+data |>
+  filter(x12c_all_installers_collapsed != x13c_all_installers_collapsed) |>
+  tabyl(x12c_all_installers_collapsed, x13c_all_installers_collapsed, size_company_employee_work_1)
+
+```
+
+
+
 Table 2.4c provides the distribution by company size for company owners (including sole traders).
 
 ```{r}
@@ -913,6 +1049,16 @@ kable(change_distribution,
   row_spec(0, bold = T)
 ```
 
+
+```{r}
+### OBQA
+data |>
+  filter(x12c_all_installers_collapsed != x13c_all_installers_collapsed) |>
+  tabyl(x12c_all_installers_collapsed, x13c_all_installers_collapsed, size_company_owned_collapsed_1)
+
+```
+
+
 #### 2.05 \| How do planned changes to the proportion of survey participants’ domestic or commercial heating work differ depending on the amount of time they’ve been in the heat pump sector?
 
 Table 2.5 shows the change in ratio of heating work by the time the installers have been in the heat pump sector.
@@ -935,6 +1081,16 @@ kable(change_distribution,
   row_spec(0, bold = T)
 ```
 
+
+```{r}
+### OBQA
+data |>
+  filter(x12c_all_installers_collapsed != x13c_all_installers_collapsed) |>
+  tabyl(x12c_all_installers_collapsed, x13c_all_installers_collapsed, x4_how_long_have_you_been_working_with_heat_pumps)
+
+```
+
+
 #### 2.06 \| Of the systems that survey participants install, what proportion are heat pumps?
 
 Table and Figure 2.6a show the distribution of heating systems installations across the different categories of installers.
@@ -951,7 +1107,11 @@ data <- data %>%
    x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "My company doesn't install any heat pumps, but plans to do so in the next 12 months" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "I don't install any heat pumps, but I plan to do so in the next 12 months" ~ "My company doesn't/I don't install any heat pumps, but plan(s) to do so in the next 12 months",
    x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on == "My company doesn't install any heat pumps, and has no plans to do so" | x14b_thinking_of_the_heating_systems_you_install_do_you_work_on == "I don't install any heat pumps and have no plans to do so" ~ "My company doesn't/I don't install any heat pumps, and has/have no plans to do so",
    TRUE ~ "Other"))
+```
 
+OBQA: Pretty big case when here - I wonder if it would be better to split it up by each variable, and then coalesce after.
+
+```{r}
 # Set order of the values for consistency with prior graphs
 data <- data %>% 
   mutate(installations_merge = factor(installations_merge,
@@ -1017,6 +1177,13 @@ kable(table_df,
 ```
 
 ```{r}
+### OBQA
+data |> tabyl(employment_type, installations_merge)
+
+```
+
+
+```{r}
 # Create plot #
 # Table for breakdown by employment type 
 table <- xtabs(~ employment_type + installations_merge, data)
@@ -1061,6 +1228,16 @@ ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = F
 ```
 
 ```{r}
+### OBQA
+data |>
+  ggplot(aes(x = installations_merge, fill = employment_type)) +
+  geom_bar(position = "dodge")
+
+```
+
+
+
+```{r}
 # Alternative plot
 ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
   geom_bar(stat = "identity") +
@@ -1072,6 +1249,15 @@ ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = F
   scale_x_discrete(labels = label_wrap_gen(width = 10)) +
   scale_fill_manual(values = wes_palette("Zissou1"))
 ```
+
+```{r}
+### OBQA
+data |>
+  ggplot(aes(x = installations_merge, fill = employment_type)) +
+  geom_bar()
+
+```
+
 
 Table and Figure 2.6c provide the distribution for a binary classification of employment type.
 
@@ -1101,6 +1287,13 @@ kable(table_df,
                 html_font = "Arial") %>%
   row_spec(0, bold = TRUE)
 ```
+
+```{r}
+### OBQA
+data |> tabyl(dummy_employment_type, installations_merge)
+
+```
+
 
 ```{r}
 # Create plot #
@@ -1147,6 +1340,15 @@ ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = F
 ```
 
 ```{r}
+### OBQA
+data |>
+  ggplot(aes(x = installations_merge, fill = dummy_employment_type)) +
+  geom_bar(position = "dodge")
+
+```
+
+
+```{r}
 # Alternative plot
 ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = Frequency, fill = EmploymentType)) +
   geom_bar(stat = "identity") +
@@ -1170,7 +1372,11 @@ data <- data %>%
    ratio_heating_systems_hp_company_14a == "Mostly non-heat pumps" | ratio_heating_systems_hp_engineer_14b == "Mostly non-heat pumps" ~ "Mostly non-heat pumps",
    ratio_heating_systems_hp_company_14a == "Don’t install heat pumps" | ratio_heating_systems_hp_engineer_14b == "Don’t install heat pumps" ~ "Don’t install heat pumps",
    TRUE ~ "Other"))
+```
 
+OBQA: Same comment as before - this would be better split up.
+
+```{r}
 # Set order of the values for consistency with prior graphs
 data <- data %>% 
   mutate(installations_merge_collapsed = factor(installations_merge_collapsed,
@@ -1189,6 +1395,12 @@ kable(table,
                 full_width = F,
                 html_font = "Arial") %>%
   row_spec(0, bold = T)
+```
+
+```{r}
+### OBQA
+data |> tabyl(installations_merge_collapsed)
+
 ```
 
 ```{r}
@@ -1230,6 +1442,13 @@ kable(table_df,
 ```
 
 ```{r}
+### OBQA
+data |> tabyl(employment_type, installations_merge_collapsed)
+
+```
+
+
+```{r}
 # Create plot #
 # Table for breakdown by employment type 
 table <- xtabs(~ employment_type + installations_merge_collapsed, data)
@@ -1267,6 +1486,15 @@ ggplot(table_long, aes(x = factor(`Installations`, levels = order_labels), y = F
   scale_y_continuous(breaks = seq(0, 100, by = 10)) +
   scale_fill_manual(values = wes_palette("Zissou1"))
 ```
+
+```{r}
+### OBQA
+data |>
+  ggplot(aes(x = installations_merge_collapsed, fill = employment_type)) +
+  geom_bar(position = "dodge")
+
+```
+
 
 ```{r}
 # Alternative plot
@@ -1307,6 +1535,13 @@ kable(table_df,
                 html_font = "Arial") %>%
   row_spec(0, bold = TRUE)
 ```
+
+```{r}
+### OBQA
+data |> tabyl(dummy_employment_type, installations_merge_collapsed)
+
+```
+
 
 ```{r}
 # Create plot #
@@ -1377,7 +1612,37 @@ data <- data %>%
    x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "My company doesn't service and maintain any heat pumps, but plans to do so in the next 12 months" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "I don’t service and maintain any heat pumps, but plan to do so in the next year" ~ "My company doesn't/I don't service and maintain any heat pumps, but plan(s) to do so in the next 12 months",
    x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on == "My company doesn't service and maintain any heat pumps and has no plans to do so" | x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on == "I don’t service and maintain any heat pumps and have no plans to do so" ~ "My company doesn't/I don't service and maintain any heat pumps, and has/have no plans to do so",
    TRUE ~ "Other"))
+```
 
+```{r}
+### OBQA
+data |> tabyl(x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on)
+data |> tabyl(x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on)
+data |> tabyl(service_maintenance_merge)
+
+## Looks fine
+
+vars <- c("x15a_thinking_of_the_heating_systems_your_company_services_and_maintains_do_you_work_on",
+          "x15b_thinking_of_the_heating_systems_you_service_and_maintain_do_you_work_on",
+          "service_maintenance_merge")
+
+map(vars, \(x) {
+  data |>
+    filter(.data[[x]] != "Not asked") |>
+    group_by(.data[[x]]) |>
+    summarise(n = n()) |>
+    select(n)
+}) |>
+  bind_cols() |>
+  mutate(check = `n...1` + `n...2`)
+
+## Probably the best way of checking this.
+
+```
+
+
+
+```{r}
 # Set order of the values for consistency with prior graphs
 data <- data %>% 
   mutate(service_maintenance_merge = factor(service_maintenance_merge,
@@ -1527,6 +1792,13 @@ kable(table_df,
                 html_font = "Arial") %>%
   row_spec(0, bold = TRUE)
 ```
+
+```{r}
+### OBQA
+data |> tabyl(dummy_employment_type, service_maintenance_merge)
+
+```
+
 
 ```{r}
 # Create plot #
@@ -1694,6 +1966,12 @@ data <- data %>%
                                    str_detect(x16a_answer5, "Other") |
                                    str_detect(x16a_answer6, "Other") |
                                    str_detect(x16a_answer7, "Other"), 1, 0))
+```
+
+OBQA: This section is quite repetitive so could do with some purrr.
+
+
+```{r}
 # Question 16b
 # Turn list into character so r can read the different answers
 data$x16b_answer1 <- sapply(data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply, function(x) as.character(x[1]))
@@ -1872,6 +2150,85 @@ kable(summary_table,
 ```
 
 ```{r}
+## OBQA
+# Create function to detect string among all responses
+
+## This is kind of funky as it has an anonymous function inside of it, because of each row being a list.
+
+extract_type <- function(name, string, var, suffix) {
+  map(var,
+    \(.x) {
+      str_detect(.x, fixed(string)) |>
+        sum(na.rm = TRUE) |>
+        as.data.frame() |>
+        rename(!!as.name(paste0(name, suffix)) := 1)
+    }
+    ) |>
+  list_rbind()
+}
+
+# Creating lists
+names <- c("xdummy_air_source_all",
+           "xdummy_air_air_all",
+           "xdummy_ground_source_all",
+           "xdummy_hybrid_air_source_all",
+           "xdummy_hybrid_ground_source_all",
+           "xdummy_ground_loops_all",
+           "xdummy_communal_heating_all",
+           "xdummy_water_source_all",
+           "xdummy_other_all") ## Will be the names of variables
+
+strings <- c("Air-source (air-to-water) heat pumps", 
+               "Air-to-air heat pumps", 
+               "Ground-source heat pumps", 
+               "Hybrid air-source heat pumps", 
+               "Hybrid ground-source heat pumps", 
+               "Heat pumps for shared ground loops",
+               "Heat pumps for communal heating systems",
+               "Water-source heat pumps",
+               "Other") ## Strings to look for
+
+# Mapping over variable list for 16a
+data <- data |>
+  bind_cols(
+    map2(
+      names, strings,
+      ~extract_type(.x, .y, suffix = "_16a",
+                    var = data$x16a_what_types_of_heat_pump_has_your_company_installed_over_the_last_12_months_select_all_that_apply),
+      .progress = TRUE))
+  
+# Mapping over variable list for 16b
+data <- data |>
+  bind_cols(
+    map2(
+      names, strings, 
+      ~extract_type(.x, .y, suffix = "_16b",
+                    var = data$x16b_what_types_of_heat_pump_have_you_installed_over_the_last_12_months_select_all_that_apply),
+      .progress = TRUE))
+
+# Combining all columns
+sum_over <- function(var) {
+  data |>
+    mutate(!!as.name(var) := rowSums(pick(starts_with(var)))) |>
+    select(.data[[var]])
+}
+
+# Mapping over data frame
+data <- data |>
+  bind_cols(
+    map(names, ~sum_over(.x))
+  )
+
+# Checking two approaches
+data |> tabyl(dummy_communal_heating_all)
+data |> tabyl(xdummy_communal_heating_all)
+
+
+```
+
+
+
+```{r}
 # Create plot of distribution
 # Rename variables in the subset for clear display in plot
 subset_dummy <- subset_dummy %>%
@@ -1883,7 +2240,20 @@ summary_table <- subset_dummy %>%
 
 # Create object to produce plot
 summary_long <- tidyr::gather(summary_table, key = "dummy_variable", value = "count")
+```
 
+OBQA: You can use pivot_longer here too - it supersedes gather.
+
+```{r}
+### OBQA
+summary_long_qa <- subset_dummy |>
+  summarise(across(everything(), list(name = ~sum(.x, na.rm = TRUE)))) |>
+  pivot_longer(cols = everything(), names_to = "dummy_variable", values_to = "count")
+
+```
+
+
+```{r}
 # Produce plot
 ggplot(summary_long, aes(x = factor(dummy_variable, levels = c("Air-source (air-to-water) heat pumps", 
                "Air-to-air heat pumps", 
