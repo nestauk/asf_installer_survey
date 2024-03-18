@@ -3,6 +3,8 @@ title: "Installer survey - Section 2"
 author: "Benoit Siberdt"
 date: "2024-01-26"
 output: html_document
+editor_options: 
+  chunk_output_type: console ## OBQA: I find this is much nicer to use
 ---
 
 ```{r setup, include=FALSE}
@@ -32,14 +34,22 @@ library(stringr)
 library(janitor)
 library(wesanderson)
 library(khroma)
+```
 
+OBQA: I prefer to use more code chunks in general.
+
+```{r}
 ##### Load dataset
 file_path <- "G:\\Shared drives\\A Sustainable Future\\1. Reducing household emissions\\2. Projects Research Work\\36. Installer survey\\05 survey data\\20240201_Installer_survey_clean_data_anonymised.parquet"
 Installer_survey_data <- arrow::read_parquet(file_path)
 
 # Duplicate dataset to be sure not to mess it up
 data_full <- Installer_survey_data
+```
 
+OBQA: You don't need to do this and, for large datasets, it will just detract from system memory
+
+```{r}
 # Link to the Miro board
 # https://miro.com/app/board/uXjVNWK_xBg=/
 
@@ -48,8 +58,12 @@ data_full <- Installer_survey_data
 
 ##### Filter out partial responses
 data <- data_full %>%
-  filter(`0e. Analytical Sample` == "TRUE")  
+  filter(`0e. Analytical Sample` == "TRUE")
+```
 
+OBQA: I personally like to comment on the change in rows - in this case, 768 to 345. This indicates that there re a lot of partial responses.
+
+```{r}
 ##### Change names of variables to make things easier
 data <- clean_names(data)
 
@@ -66,7 +80,19 @@ data <- data %>%
                                      x6a_what_size_company_do_you_own == "I own a company with 26-100 employees" ~ "Company owner",
                                      x6a_what_size_company_do_you_own == "I own a company with over 100 employees" ~ "Company owner", TRUE ~ "Not asked"))
 data$employment_type <- as.factor(data$employment_type)
+```
 
+OBQA: I tend to like to include checks when you make new variables, i.e., like a two-way table. Example below. It adds more lines to the script but I think is very important to check. It will throw up NAs for typos, for example.
+
+```{r}
+### OBQA
+tabyl(data, employment_type, x5_are_you_responding_to_this_survey_as)
+data |> tabyl(employment_type, x6a_what_size_company_do_you_own)
+```
+
+OBQA: Note the two lines above are identical, but using a pipe (second option) makes it easier to choose the variables as RStudio provides options for you.
+
+```{r}
 # Create variable where employees and contractors are merged together
 data <- data %>%
   mutate(employment_type_soletrader_owner_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor or freelancer",
@@ -74,7 +100,16 @@ data <- data %>%
                                                              employment_type == "Sole trader" ~ "Sole trader or company owner",
                                                              employment_type == "Company owner" ~ "Sole trader or company owner"))
 data$employment_type_soletrader_owner_merged <- as.factor(data$employment_type_soletrader_owner_merged)
+```
 
+```{r}
+### OBQA
+data |> tabyl(employment_type_soletrader_owner_merged, employment_type)
+
+```
+
+
+```{r}
 # Create variable where employees and contractors are merged together
 data <- data %>%
   mutate(employment_type_employee_contractor_merged = case_when(employment_type == "Contractor or freelancer" ~ "Contractor/freelancer or employee",
@@ -82,7 +117,16 @@ data <- data %>%
                                                                 employment_type == "Sole trader" ~ "Sole trader",
                                                                 employment_type == "Company owner" ~ "Company owner"))
 data$employment_type_employee_contractor_merged <- as.factor(data$employment_type_employee_contractor_merged)
+```
 
+
+```{r}
+### OBQA
+data |> tabyl(employment_type_employee_contractor_merged, employment_type)
+
+```
+
+```{r}
 # Create dummy variable for employment type
 data <- data %>%
   mutate(dummy_employment_type = case_when(employment_type == "Employee" ~ "Employee or contractor/freelancer",
@@ -90,7 +134,16 @@ data <- data %>%
                                            employment_type == "Company owner" ~ "Company owner or sole trader",
                                            employment_type == "Sole trader" ~ "Company owner or sole trader"))
 data$dummy_employment_type <- as.factor(data$dummy_employment_type)
+```
 
+```{r}
+### OBQA
+data |> tabyl(dummy_employment_type, employment_type)
+
+```
+
+
+```{r}
 # Create dummy for contractors and freelancers
 data <- data %>%
   mutate(dummy_contractors = case_when(employment_type == "Contractor or freelancer" ~ 1, TRUE ~ 0))
@@ -106,8 +159,25 @@ data <- data %>%
 # Create dummy for company owner
 data <- data %>%
   mutate(dummy_company_owner = case_when(employment_type == "Company owner" ~ 1, TRUE ~ 0))
+```
 
+OBQA: I think a single variable could work here, but might be clear later on why you chose to use dummy variables.
 
+```{r}
+### OBQA
+vars <- c("dummy_contractors", "dummy_employees", "dummy_soletraders", "dummy_company_owner")
+
+map(vars, \(x) {
+  print(x)
+  data |>
+    tabyl(employment_type, .data[[x]])
+})
+
+```
+
+OBQA: As you can see, there is no 1 column for output 3, for sole traders. This is because there's a typo above (should be "Sole trader)
+
+```{r}
 ##### Participant age
 data <- data %>%
   mutate(age_collapsed = recode_factor(x1_how_old_are_you,
@@ -119,8 +189,16 @@ data <- data %>%
                                        "65-74" = "55 and over",
                                        "Over 75" = "55 and over",
                                        "Prefer not to say" = "Prefer not to say"))
+```
+
+```{r}
+### OBQA
+data |> tabyl(age_collapsed, x1_how_old_are_you)
+
+```
 
 
+```{r}
 ##### Length of time in the heat pump sector
 data <- data %>%
   mutate(length_hp_sector_collapsed = recode_factor(x4_how_long_have_you_been_working_with_heat_pumps,
@@ -133,8 +211,16 @@ data <- data %>%
                                                     "5-10 years" = "5-10 years",
                                                     "10-20 years" = "Over 10 years",
                                                     "Over 20 years" = "Over 10 years"))
+```
+
+```{r}
+### OBQA
+data |> tabyl(x4_how_long_have_you_been_working_with_heat_pumps, length_hp_sector_collapsed)
+
+```
 
 
+```{r}
 ##### Size of company owned
 # Version 1
 data <- data %>%
@@ -145,7 +231,16 @@ data <- data %>%
                                                         "I own a company with 26-100 employees" = "Large",
                                                         "I own a company with over 100 employees" = "Large",
                                                         "Not asked" = "Not asked"))
+```
 
+
+```{r}
+### OBQA
+data |> tabyl(x6a_what_size_company_do_you_own, size_company_owned_collapsed_1)
+```
+
+
+```{r}
 # Version 2
 data <- data %>%
   mutate(size_company_owned_collapsed_2 = recode_factor(x6a_what_size_company_do_you_own,
@@ -155,8 +250,15 @@ data <- data %>%
                                                         "I own a company with 26-100 employees" = "Medium and large",
                                                         "I own a company with over 100 employees" = "Medium and large",
                                                         "Not asked" = "Not asked"))
+```
 
 
+```{r}
+### OBQA
+data |> tabyl(x6a_what_size_company_do_you_own, size_company_owned_collapsed_2)
+```
+
+```{r}
 ##### Size of company employees work for
 # Version 1
 data <- data %>%
@@ -167,7 +269,16 @@ data <- data %>%
                                                       "I work for a company with over 100 employees" = "Over 100",
                                                       "Not asked" = "Not asked",
                                                       "Don't know" = "Don't know"))
+```
 
+```{r}
+### OBQA
+data |> tabyl(x6b_what_size_company_do_you_work_for, size_company_employee_work_1)
+  
+```
+
+
+```{r}
 # Version 2
 data <- data %>%
   mutate(size_company_employee_work_2 = recode_factor(x6b_what_size_company_do_you_work_for,
@@ -177,8 +288,16 @@ data <- data %>%
                                                       "I work for a company with over 100 employees" = "Over 25",
                                                       "Not asked" = "Not asked",
                                                       "Don't know" = "Don't know"))
+```
+
+```{r}
+### OBQA
+data |> tabyl(x6b_what_size_company_do_you_work_for, size_company_employee_work_2)
+
+```
 
 
+```{r}
 ##### Distance travelled for work
 data <- data %>%
   mutate(distance_travelled_for_work_collapsed = recode_factor(x10_how_far_from_your_business_location_would_you_typically_travel_for_jobs_approximately,
@@ -189,8 +308,16 @@ data <- data %>%
                                                                "200 to 300 miles" = "Over 100 miles",
                                                                "More than 300 miles" = "Over 100 miles",
                                                                "Don't know" = "Don't know"))
+```
+
+```{r}
+### OBQA
+data |> tabyl(x10_how_far_from_your_business_location_would_you_typically_travel_for_jobs_approximately, distance_travelled_for_work_collapsed)
+  
+```
 
 
+```{r}
 ########### Additional pre-analysis code ###########
 
 ## Domestic/commercial work split
@@ -203,7 +330,16 @@ data <- data %>%
                                                "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
                                                "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
                                                "Not asked" = "Not asked"))
+```
 
+```{r}
+### OBQA
+data |> tabyl(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of, dom_com_work_plit_12a)
+
+```
+
+
+```{r}
 # Individual
 data <- data %>%
   mutate(dom_com_work_plit_12b = recode_factor(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of,
@@ -213,8 +349,15 @@ data <- data %>%
                                                "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
                                                "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
                                                "Not asked" = "Not asked"))
+```
+
+```{r}
+### OBQA
+data |> tabyl(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of, dom_com_work_plit_12a)
+```
 
 
+```{r}
 ## Intentions for domestic/commercial work split
 # Company
 data <- data %>%
@@ -225,7 +368,15 @@ data <- data %>%
                                                            "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
                                                            "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
                                                            "Not asked" = "Not asked"))
+```
 
+```{r}
+### OBQA
+data |> tabyl(x13a_thinking_of_your_companys_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of, intentions_dom_com_work_split_13a)
+```
+
+
+```{r}
 # Individual
 data <- data %>%
   mutate(intentions_dom_com_work_split_13b = recode_factor(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of,
@@ -235,8 +386,16 @@ data <- data %>%
                                                            "Mostly commercial heating work, and some domestic heating work" = "Mostly/entirely commercial",
                                                            "Entirely commercial heating work, and no domestic heating work" = "Mostly/entirely commercial",
                                                            "Not asked" = "Not asked"))
+```
+
+```{r}
+## OBQA
+data |> tabyl(x13b_thinking_of_your_overall_heating_work_in_12_months_time_what_do_you_intend_it_to_consist_of, intentions_dom_com_work_split_13b)
+
+```
 
 
+```{r}
 ## Ratio heating system installations that are heat pumps
 # Company
 data <- data %>%
@@ -248,7 +407,16 @@ data <- data %>%
                                                               "Almost entirely other systems and the occasional heat pump" = "Mostly non-heat pumps",
                                                               "My company doesn't install any heat pumps, but plans to do so in the next 12 months" = "Don’t install heat pumps",
                                                               "My company doesn't install any heat pumps, and has no plans to do so" = "Don’t install heat pumps"))
+```
 
+```{r}
+### OBQA
+data |> tabyl(x14a_thinking_of_the_heating_systems_your_company_installs_do_you_work_on, ratio_heating_systems_hp_company_14a)
+
+```
+
+
+```{r}
 # Individual
 data <- data %>%
   mutate(ratio_heating_systems_hp_engineer_14b = recode_factor(x14b_thinking_of_the_heating_systems_you_install_do_you_work_on,
@@ -259,6 +427,12 @@ data <- data %>%
                                                                "Almost entirely other systems, and the occasional heat pump" = "Mostly non-heat pumps",
                                                                "I don't install any heat pumps, but I plan to do so in the next 12 months" = "Don’t install heat pumps",
                                                                "I don't install any heat pumps and have no plans to do so" = "Don’t install heat pumps"))
+```
+
+```{r}
+### OBQA
+data |> tabyl(x14b_thinking_of_the_heating_systems_you_install_do_you_work_on, ratio_heating_systems_hp_engineer_14b)
+
 ```
 
 #### 2.01 \| What proportion of survey participants’ current work is domestic or commercial?
@@ -288,6 +462,45 @@ kable(table,
   row_spec(0, bold = T)
 ```
 
+OBQA: I think you could use a function here to make this much more straightforward. I've suggested one below.
+
+```{r}
+### OBQA
+
+# Make function
+make_table <- function(var, caption, col, coltype) {
+  
+  # Value for n
+  n <- data |>
+    filter(.data[[var]] != "Not asked") |>
+    nrow()
+  
+  # Create table
+  data |>
+    mutate(!!as.name(var) := recode_factor(.data[[var]], "Not asked" = NA_character_)) |> ## !! to indicate name, not an object. Walrus operator (:=) is needed instead of equals.
+    select(.data[[var]]) |>
+    table() |>
+    kable(
+      caption = paste0(caption, " (n = ", n, ")"), 
+      col.names = c(col, coltype), 
+      align = "c") %>%
+  kable_classic(bootstrap_options = c("striped"),
+                full_width = F,
+                html_font = "Arial") %>%
+  row_spec(0, bold = T)
+}
+
+# Execute function
+make_table("x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of",
+           "Table 2.1a. Type of heating work (company owners)",
+           "Heating work",
+           "Frequency")
+
+## The cool thing about this is that you could pass it a csv file with 4 columns relating to each of the inputs and it could generate all of these tables very quickly.
+
+```
+
+
 ```{r}
 # Figure 2.1a
 data_filtered <- data[!is.na(data$x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis),]
@@ -301,6 +514,58 @@ ggplot(data_filtered, aes(x = x12a_thinking_of_your_companys_overall_heating_wor
   scale_x_discrete(labels = label_wrap_gen(width = 15))
 ```
 
+OBQA: Similarly, no need to create data_filtered - you can jut use a pipe.
+
+Example function below.
+
+```{r}
+### OBQA
+
+# Define function
+make_graph_count <- function(var, caption, breakline) {
+  
+  # Calculate maximum bar size
+  max_height <- data |>
+    filter(.data[[var]] != "Not asked") |>
+    group_by(.data[[var]]) |>
+    summarise(n = n()) |>
+    summarise(max = max(n)) ## Calculate biggest bar
+  
+  max_height <- max_height |>
+    mutate(max = ceiling(max / breakline) * breakline) |>
+    as.integer()
+  
+  # Value for n
+  n <- data |>
+    filter(.data[[var]] != "Not asked") |>
+    nrow()
+  
+  # Code for graph
+  data |>
+    filter(.data[[var]] != "Not asked") |>
+    ggplot(aes(x = .data[[var]])) +
+      geom_bar(fill = "blue") +
+      labs(title = paste0(caption, " (n = ", n, ")"), 
+         x = "", 
+         y = "Count") +
+      geom_text(
+        aes(
+          y = after_stat(count),
+          label = after_stat(count)),
+        stat = "count",
+        vjust = -0.5) +
+      theme_bw() +
+      scale_y_continuous(labels = waiver(), limits = c(0, max_height), n.breaks = max_height / 20 + 1) +
+      scale_x_discrete(labels = label_wrap_gen(width = 15))
+}
+
+make_graph_count("x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of",
+           "QA", 20)
+
+```
+
+
+
 ```{r}
 # Table 2.1b
 # Duplicate variable
@@ -311,6 +576,7 @@ data <- data %>%
   mutate(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis = 
       recode(x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis,
         "Not asked" = NA_character_))
+
 
 # Create table
 table <- table(data$x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis)
@@ -325,6 +591,17 @@ kable(table,
 ```
 
 ```{r}
+### OBQA
+make_table("x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of",
+           "QA",
+           "Heating work",
+           "Frequency")
+
+```
+
+
+
+```{r}
 # Figure 2.1b
 data_filtered <- data[!is.na(data$x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis),]
 ggplot(data_filtered, aes(x = x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis)) +
@@ -337,6 +614,12 @@ ggplot(data_filtered, aes(x = x12b_thinking_of_your_overall_heating_work_what_do
   scale_x_discrete(labels = label_wrap_gen(width = 15))
 ```
 
+```{r}
+make_graph_count("x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of",
+                 "QA", 20)
+```
+
+
 In the survey, company owners were asked question 12a, while sole traders, employees, and contractors were asked question 12b. The difference across these two questions lies in the slightly different formulation (asking about the company's work vs the individual's work). Given that answers were the same, Table and Figure 2.1c provide the distribution for all categories of installers together to give the overall distribution of survey respondents.
 
 ```{r}
@@ -344,7 +627,18 @@ In the survey, company owners were asked question 12a, while sole traders, emplo
 data <- data %>% 
   mutate(x12c_all_installers = coalesce(x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of_bis,
                                         x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of_bis))
+```
 
+```{r}
+### OBQA
+data |> tabyl(x12c_all_installers, x12a_thinking_of_your_companys_overall_heating_work_what_does_it_currently_consist_of)
+
+data |> tabyl(x12c_all_installers, x12b_thinking_of_your_overall_heating_work_what_does_it_currently_consist_of)
+
+```
+
+
+```{r}
 # Create table
 table <- table(data$x12c_all_installers)
 kable(table, 

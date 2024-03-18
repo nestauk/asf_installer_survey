@@ -1,0 +1,13 @@
+## Section 2 QA notes
+
+### Comments
+
+- I would suggest introducing a check for each mutate.
+- Not sure why you duplicate variables before making a table? You could just use a pipe.
+- I prefer using filter instead of square brackets when subsetting - it's more compatible with pipes if you're using tidyverse
+- It doesn't look like scale_y_continuous in working in the first graph
+
+
+### Errors
+
+- Error in line 104 - should be Sole trader
