@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     comment_magics: true
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+# ---
+
 # %% [markdown]
 # ## Section 9: Apprenticeships and entry level installer roles
 # **Aims:** Generating outputs for Section 9 (RQs 9.01 - 9.26) as planned in [Heat Pump Installer Survey data analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.jzmlm8j0kyve)<br>
@@ -175,7 +189,7 @@ df_904
 # - Broken down by Q37 ("NumberInstalls")
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Number of installs
@@ -207,7 +221,7 @@ groupedbar(df_905,
 # - Broken down by Q38
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Desired increase in installs
@@ -632,7 +646,7 @@ df_912
 # - Standard_output
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Print possible answers
@@ -677,7 +691,7 @@ df_913
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # N.B. This is a Select all that apply type question
-# 
+#
 
 # %%
 # Print possible answers
@@ -772,7 +786,7 @@ df_914
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # N.B. This is a Select all that apply type question
-# 
+#
 
 # %%
 # Create separate dataframe that stacks all answer columns
@@ -809,7 +823,7 @@ df_915
 # - Standard_output
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Print possible answers
@@ -862,11 +876,11 @@ df_916
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # Collapsed categories:
-# 
+#
 # - Unlikely <- Very unlikely; Unlikely
 # - Neutral <- Neutral
 # - Likely <- Likely; Very likely
-# 
+#
 
 # %%
 # Print possible answers
@@ -973,11 +987,11 @@ df_917_collapsed
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # Collapsed categories:
-# 
+#
 # - Unlikely <- Very unlikely; Unlikely
 # - Neutral <- Neutral
 # - Likely <- Likely; Very likely
-# 
+#
 
 # %% [markdown]
 # **Non-collapsed version**
@@ -1014,7 +1028,7 @@ df_918_uncollapsed
 
 # %%
 # Generate crosstab dataframe
-df_918_collapsed = crosstable("EmploymentType",
+df_918_collapsed = crosstable("CompanySizeOwnerV2",
                              data,
                              "SQ86",
                              ans_86_collapsed
@@ -1031,10 +1045,10 @@ df_918_collapsed
 # - SQ 87
 # - Sample:
 # - Standard_output
-# 
+#
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Convert "Not asked" to None
@@ -1071,10 +1085,10 @@ df_919
 # - SQ 87
 # - Sample:
 # - Company_size_owner
-# 
+#
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Generate crosstable
@@ -1095,10 +1109,10 @@ df_920
 # - SQ 88
 # - Sample:
 # - Standard_output
-# 
+#
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Print possible answers
@@ -1139,10 +1153,10 @@ df_921
 # - SQ 88
 # - Sample:
 # - Company_size_owner
-# 
+#
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-# 
+#
 
 # %%
 # Generate crosstable
@@ -1163,10 +1177,10 @@ df_922
 # - SQ 89a
 # - Sample:
 # - Standard_output
-# 
+#
 # <p>
 # Of company owners and sole traders who were asked SQ 86: 89a was asked if they answered "Very likely" (n=5) or "Likely" (n=9) -> N = 14
-# 
+#
 
 # %%
 df_917_uncollapsed
@@ -1210,10 +1224,10 @@ df_923
 # - SQ 89b
 # - Sample:
 # - Standard_output
-# 
+#
 # <p>
 # Of company owners and sole traders who were asked SQ 86: 89b was asked if they answered "Neutral" (n=50), "Unlikely (n=57) or "Very unlikely" (n=77) -> N = 184
-# 
+#
 
 # %%
 # Print possible answers
@@ -1255,7 +1269,7 @@ df_924
 # - SQ 89a, 89b
 # - Sample:
 # - Standard_output
-# 
+#
 
 # %%
 def condition_q89(x):
@@ -1330,7 +1344,7 @@ df_925
 # - SQ 89a, 89b
 # - Sample:
 # - Company_size_owner
-# 
+#
 
 # %%
 # Generate crosstab dataframe
