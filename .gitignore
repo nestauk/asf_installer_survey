@@ -1,5 +1,6 @@
 .recipes/
 .cookiecutter/state/
+outputs/section6/
 
 *.lock
 
