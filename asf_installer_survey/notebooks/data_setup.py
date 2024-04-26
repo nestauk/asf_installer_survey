@@ -2,6 +2,8 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_filter: -all
+#     comment_magics: true
 #     custom_cell_magics: kql
 #     text_representation:
 #       extension: .py
@@ -35,13 +37,14 @@
 import pandas as pd
 import nbformat
 import numpy as np
-
-# Import questions from lookups class
-from lookups import QuestionNumbers as col
 from matplotlib import pyplot as plt
-
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
+
+# Import questions from lookups class
+import sys
+sys.path.insert(0,"..")
+from utils.lookups import QuestionNumbers as col
 
 # %%
 # Load data
