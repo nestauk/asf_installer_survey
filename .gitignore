@@ -1,9 +1,6 @@
 .recipes/
 .cookiecutter/state/
 
-# .csv and figure outputs from section analysis
-outputs/section6/
-
 *.lock
 
 # Proposed convention
