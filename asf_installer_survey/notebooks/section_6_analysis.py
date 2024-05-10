@@ -60,7 +60,7 @@ def condition_q42(x: Dict[str, str]):
     merging responses from sub-types of the same question.
 
     Args:
-        x: pandas dataframe containing responses from analytical sample.
+        x: A dictionary-like object representing a single row from a DataFrame.
     """
     
     # Merge responses
