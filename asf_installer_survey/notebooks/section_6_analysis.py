@@ -38,6 +38,7 @@ with open("free_text_recode.py") as file:
 # %%
 from matplotlib import pyplot as plt
 
+# Allow display of all outputs (not just the last output) from each cell
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
 
@@ -104,6 +105,31 @@ df_601_crosstab = crosstable("EmploymentType",
 
 df_601_crosstab.to_csv("../../outputs/section6/csv/601.csv")
 df_601_crosstab
+
+# %%
+"""
+Alternative function formulation suggested in PR review (https://github.com/nestauk/asf_installer_survey/pull/6#discussion_r1587935315)
+
+# Mapping of input values to output values
+    response_mapping = {
+        "Yes": "Yes",
+        "No, but I intend to offer it in the next 12 months": "No, but we/I intend to offer it in the next 12 months",
+        "No, and I do not intend to start offering this service in the next 12 months": "No, and we/I do not intend to start offering this service in the next 12 months",
+        "Don't know": "We/I don't know"
+    }
+
+    # Get the responses for q42a and q42b
+    response_a = x[col.q42a]
+    response_b = x[col.q42b]
+
+    # Check if the responses are in the mapping
+    if response_a in response_mapping:
+        return response_mapping[response_a]
+    elif response_b in response_mapping:
+        return response_mapping[response_b]
+    else:
+        raise ValueError(f"Unexpected value: {response_a}, {response_b}")
+"""
 
 # %%
 # Generate figure
