@@ -10,6 +10,10 @@
 #       format_name: percent
 #       format_version: '1.3'
 #       jupytext_version: 1.11.2
+#   kernelspec:
+#     display_name: installersurvey
+#     language: python
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -33,6 +37,9 @@ from matplotlib import pyplot as plt
 
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
+
+import numpy as np
+from scipy.stats import chi2_contingency
 
 # %% [markdown]
 # ### RQ 9.01 | What proportion of survey participants currently employs an apprentice who works on heat pump installations, or has done so in the last 12 months?
@@ -108,24 +115,33 @@ df_902 = df_902.fillna(0)
 df_902 = df_902.astype(int)
 
 # Save to .csv and display
-df_902.to_csv("../../outputs/section9/csv/902.csv")
-df_902
+# df_902.to_csv("../../outputs/section9/csv/902.csv")
+# df_902
 
-# Generate figure
-groupedbar(df_902,
-           "902_trans",
-           str(col.q80),
-           "section9"
-           )
+# # Generate figure
+# groupedbar(df_902,
+#            "902_trans",
+#            str(col.q80),
+#            "section9"
+#            )
 
 # %%
-df_902 = df_902.transpose()
-# Generate figure - transposed version
-groupedbar(df_902,
-           "902_trans",
-           str(col.q80),
-           "section9"
-           )
+# df_902 = df_902.transpose()
+# # Generate figure - transposed version
+# groupedbar(df_902,
+#            "902_trans",
+#            str(col.q80),
+#            "section9"
+#            )
+
+# %%
+df_902
+
+# %%
+# Chi-square test to test for association
+df_902_chi2 = df_902.drop(columns=["Total"], index=["Total", "Don't work with heat pumps"])
+chi_val, p_val, dof, exp_val = chi2_contingency(df_902_chi2.to_numpy())
+chi_val, p_val
 
 # %% [markdown]
 # ### RQ 9.03 | How does the number of survey participants who’ve employed an apprentice who works on heat pump installations in the last 12 months differ depending on the size of the company they own?
@@ -350,6 +366,27 @@ df_907 = df_907.drop(index=['Employee', 'Contractor'])
 df_907.to_csv("../../outputs/section9/csv/907.csv")
 df_907
 
+
+# %%
+# Check to ensure that 'I don't face any challenges' was the ONLY option selected
+count = 0
+for x in data[col.q81[0]]:
+    if "I don’t face any challenges" in x:
+        count = count + 1
+        print(x, count)
+    else:
+        pass
+
+# %%
+# Number of responses that selected both college related responses
+count = 0
+for x in data[col.q81[0]]:
+    if "There are no colleges delivering apprenticeship training of a high enough quality near me" in x and "There were no colleges delivering relevant apprenticeship training near me" in x:
+        count = count + 1
+        print(x)
+    else:
+        pass
+print(count)
 
 # %% [markdown]
 # ### RQ 9.08 | How do the challenges that survey participants who’ve taken on an apprentice to work on heat pumps differ depending on the length of time they’ve been in the sector?
