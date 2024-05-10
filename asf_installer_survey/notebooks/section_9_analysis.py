@@ -719,6 +719,20 @@ df_913 = df_913.drop(index=['Employee', 'Contractor'])
 df_913.to_csv("../../outputs/section9/csv/913.csv")
 df_913
 
+# %%
+# Generate cross table for breakdown across company size
+df_913_size = crosstable("CompanySizeOwnerV2",
+                         data,
+                         col.q83,
+                         ans_83
+                        )
+df_913_size = df_913_size.fillna(0)
+df_913_size = df_913_size.astype(int)
+
+# Save to .csv and display
+df_913_size.to_csv("../../outputs/section9/csv/913_size.csv")
+df_913_size
+
 # %% [markdown]
 # ### RQ 9.14 | What skills would survey participants prioritise when recruiting a recent graduate from an apprenticeship scheme?
 # - SQ 84
