@@ -53,7 +53,8 @@ data[col.q42b].value_counts()
 
 
 # %%
-def condition_q42(x):
+from typing import Dict
+def condition_q42(x: Dict[str, str]):
     """
     Function to be applied to dataframe which creates a new column
     merging responses from sub-types of the same question.
