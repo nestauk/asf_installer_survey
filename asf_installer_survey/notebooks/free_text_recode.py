@@ -108,6 +108,10 @@ recode = [630,
 # Create dictionary {response ID:dataframe index}
 response = get_index(recode)
 
+# # Check responses to be recoded
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
+
 # Re-write responses
 for id in recode:
 
@@ -118,7 +122,11 @@ for id in recode:
 
     # Re-coding if only 'Other' is selected
     else:
-        data.loc[response[id], col.q45[0]] = "No challenges"
+        data.loc[response[id], col.q45[0]] = ["No challenges"]
+
+# # Check re-written responses
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist())
 
 # %%
 ## NEW OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
@@ -133,6 +141,10 @@ recode = [79,
 # Create dictionary {response ID:dataframe index}
 response = get_index(recode)
 
+# # Check responses to be recoded
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
+
 # Re-write responses
 for id in recode:
 
@@ -143,7 +155,11 @@ for id in recode:
 
     # Re-coding if only 'Other' is selected
     else:
-        data.loc[response[id], col.q45[0]] = "Poor original installations"
+        data.loc[response[id], col.q45[0]] = ["Poor original installations"]
+
+# # Check re-written responses
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
 # %%
 ## NEW OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
@@ -159,6 +175,10 @@ recode = [198,
 # Create dictionary {response ID:dataframe index}
 response = get_index(recode)
 
+# # Check responses to be recoded
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
+
 # Re-write responses
 for id in recode:
 
@@ -169,7 +189,11 @@ for id in recode:
 
     # Re-coding if only 'Other' is selected
     else:
-        data.loc[response[id], col.q45[0]] = "Not enough manufacturer support"
+        data.loc[response[id], col.q45[0]] = ["Not enough manufacturer support"]
+
+# # Check re-written responses
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
 # %%
 ## NEW OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
@@ -182,6 +206,10 @@ recode = [106,
 # Create dictionary {response ID:dataframe index}
 response = get_index(recode)
 
+# # Check responses to be recoded
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
+
 # Re-write responses
 for id in recode:
 
@@ -192,7 +220,11 @@ for id in recode:
 
     # Re-coding if only 'Other' is selected
     else:
-        data.loc[response[id], col.q45[0]] = "Difficulty sourcing components"
+        data.loc[response[id], col.q45[0]] = ["Difficulty sourcing components"]
+
+# # Check re-written responses
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
  # %%
  ## EXISTING OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
@@ -203,6 +235,10 @@ recode = [345,
 
 # Create dictionary {response ID:dataframe index}
 response = get_index(recode)
+
+# # Check responses to be recoded
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
 # Re-write responses
 for id in recode:
@@ -223,7 +259,11 @@ for id in recode:
 
     # Re-coding if only 'Other' is selected
     else:
-        data.loc[response[id], col.q45[0]] = "Difficult to find the skills you need"
+        data.loc[response[id], col.q45[0]] = ["Difficult to find the skills you need"]
+
+# # Check re-written responses
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
 # %%
 ## EXISTING OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
@@ -234,6 +274,10 @@ recode = [415,
 
 # Create dictionary {response ID:dataframe index}
 response = get_index(recode)
+
+# # Check responses to be recoded
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
 # Re-write responses
 for id in recode:
@@ -254,7 +298,11 @@ for id in recode:
 
     # Re-coding if only 'Other' is selected
     else:
-        data.loc[response[id], col.q45[0]] = "Low levels of customer demand"
+        data.loc[response[id], col.q45[0]] = ["Low levels of customer demand"]
+
+# # Check re-written responses
+# for id in recode:
+#     print(data.loc[response[id], col.q45[0]].tolist())
 
 # %% [markdown]
 # #### SQ50
