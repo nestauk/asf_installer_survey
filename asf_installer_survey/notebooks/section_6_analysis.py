@@ -1,21 +1,3 @@
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     comment_magics: true
-#     custom_cell_magics: kql
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: installersurvey
-#     language: python
-#     name: python3
-# ---
-
 # %% [markdown]
 # ## Section 6: Maintenance and servicing
 # **Aims:** Generating outputs for Section 6 (RQs 6.01-6.25) as planned in [Heat Pump Installer Survey data analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.jzmlm8j0kyve)<br>
@@ -31,9 +13,35 @@
 # %%
 with open("data_setup.py") as file:
     exec(file.read())
+"""
+Running "data_setup.py" does the following:
+- Imports survey question numbers lookups class as col
+- Imports cleaned, anonymised survey analytical sample data as data
+- Adds new columns to the data dataframe for each sub-population category,
+column names are:
+-- EmploymentType
+-- CompanySizeOwnerV2
+-- CompanySizeEmployeeV2
+-- SectorTime
+-- NumberInstalls
+-- DesiredIncrease
+- Defines the following functions to generate cross tables:
+-- crosstable(subpop, dataframe, x, ans)
+-- location_crosstab(sq_col)
+-- transform(x, answer_list, column1, column2)
+-- explode_select_all(column)
+- Defines the following functions to generate figures:
+-- stackedbar(df, number, question, section)
+-- groupedbar(df, number, question, section)
+-- donut(df, number, question, section)
+"""
 
 with open("free_text_recode.py") as file:
     exec(file.read())
+"""
+Running "free_text_recode.py" re-assigns 'Other' free text responses to Select all that apply type questions
+by re-assigning them to a  new or existing answer, or keeping them as 'Other'
+"""
 
 # %%
 from matplotlib import pyplot as plt
@@ -51,7 +59,6 @@ InteractiveShell.ast_node_interactivity = "all"
 # Print possible answers
 data[col.q42a].value_counts()
 data[col.q42b].value_counts()
-
 
 # %%
 from typing import Dict
@@ -232,7 +239,7 @@ def condition_q43(x):
         return "For all heat pump systems, regardless of who originally installed it"
     
     else:
-        return None
+        return ValueError
     
 # Apply function to each row of dataframe
 data["SQ43"] = data.apply(condition_q43,
@@ -253,7 +260,7 @@ df_603_crosstab = crosstable("EmploymentType",
                                 )
 
 # Save to .csv and display
-df_603_crosstab.to_csv("../../outputs/section6/csv/603.csv")
+#df_603_crosstab.to_csv("../../outputs/section6/csv/603.csv")
 df_603_crosstab  
 
 # %%
@@ -347,21 +354,6 @@ data[col.q44a[0]].value_counts()
 data[col.q44b[0]].value_counts()
 
 # %%
-def transform_44(x):
-    """
-    Function to be applied to dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-    """
-    
-    # Tally occurrence of each answer
-    if response in x[col.q44a[0]] or response in x[col.q44b[0]]:
-        return response
-    else:
-        return None
-
 # Specifying desired order for outputs
 ans_44 = ["Relationship with existing customers",
           "No demand from other customers",
@@ -380,7 +372,7 @@ for n in range(0, len(ans_44) - 1):
     # Create new column for each answer option
     response = ans_44[n]
     new_col = "SQ44Ans" + str(n + 1)
-    data[new_col] = data.apply(transform_44, axis=1)
+    data[new_col] = data.apply(transform, args = (ans_44, col.q44a, col.q44b), axis=1)
 
     # Stack columns
     df = data.filter(["EmploymentType", new_col])
@@ -397,7 +389,7 @@ df_605_crosstab = df_605_crosstab.fillna(0)
 df_605_crosstab = df_605_crosstab.astype(int)
 
 # Save to .csv and display
-df_605_crosstab.to_csv("../../outputs/section6/csv/recoded/605_recoded.csv")
+#df_605_crosstab.to_csv("../../outputs/section6/csv/recoded/605_recoded.csv")
 df_605_crosstab
 
 # %%
@@ -514,21 +506,6 @@ donut(df_606_crosstab_employee_V2,
 data[col.q45[0]].value_counts()
 
 # %%
-def transform_45(x):
-    """
-    Function to be applied to dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-    """
-
-    # Tally occurrence of each answer
-    if response in x[col.q45[0]]:
-        return response
-    else:
-        return None
-    
 # Specifying desired order for outputs
 ans_45 = ["Difficult to find the skills you need",
 "Low levels of customer demand",
@@ -550,7 +527,7 @@ for n in range(0, len(ans_45)-1):
     # Create new column for each answer option
     response = ans_45[n]
     new_col = "SQ45Ans"+str(n+1)
-    data[new_col] = data.apply(transform_45, axis=1)
+    data[new_col] = data.apply(transform, args = (ans_45, col.q45), axis=1)
 
     # Stack columns
     df = data.filter(["EmploymentType", new_col])
@@ -568,9 +545,6 @@ df_607_crosstab = df_607_crosstab.astype(int)
 
 # Remove Employee index row because they are not asked
 df_607_crosstab = df_607_crosstab.drop(index='Employee')
-
-# Save to .csv and display
-df_607_crosstab.to_csv("../../outputs/section6/csv/recoded/607_recoded.csv")
 df_607_crosstab
 
 # %%
@@ -901,21 +875,6 @@ data[col.q49a[0]].value_counts()
 data[col.q49b[0]].value_counts()
 
 # %%
-def transform_49(x):
-    """
-    Function to be applied to dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-    """
-
-    # Tally occurrence of each answer
-    if response in x[col.q49a[0]] or response in x[col.q49b[0]]:
-        return response
-    else:
-        return 
-
 # Specifying desired order for outputs
 ans_49 = ["Relationship with existing customers",
           "No demand from other customers",
@@ -934,7 +893,7 @@ for n in range(0, len(ans_49)-1):
     # Create new column for each answer option
     response = ans_49[n]
     new_col = "SQ49Ans"+str(n+1)
-    data[new_col] = data.apply(transform_49, axis=1)
+    data[new_col] = data.apply(transform, args = (ans_49, col.q49a, col.q49b), axis=1)
 
     # Stack columns
     df = data.filter(["EmploymentType", new_col])
@@ -951,7 +910,7 @@ df_614_crosstab = df_614_crosstab.fillna(0)
 df_614_crosstab = df_614_crosstab.astype(int)
 
 # Save to .csv and display
-df_614_crosstab.to_csv("../../outputs/section6/csv/614.csv")
+#df_614_crosstab.to_csv("../../outputs/section6/csv/614.csv")
 df_614_crosstab
 
 # %%
@@ -1189,21 +1148,6 @@ donut(df_617_crosstab_employee_V2,
 data[col.q50[0]].value_counts()
 
 # %%
-def transform_50(x):
-    """
-    Function to be applied to dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-    """
-    
-    # Tally occurrence of each answer
-    if response in x[col.q50[0]]:
-        return response
-    else:
-        return None
-
 # Specifying desired order for outputs
 ans_50 = ["Too little demand from customers",
           "Not profitable enough",
@@ -1222,7 +1166,7 @@ for n in range(0, len(ans_50) - 1):
     # Create new column for each answer option
     response = ans_50[n]
     new_col = "SQ50Ans"+str(n + 1)
-    data[new_col] = data.apply(transform_50, axis=1)
+    data[new_col] = data.apply(transform, args = (ans_50, col.q50), axis=1)
 
     # Stack columns
     df = data.filter(["EmploymentType", new_col])
@@ -1239,7 +1183,7 @@ df_618_crosstab = df_618_crosstab.fillna(0)
 df_618_crosstab = df_618_crosstab.astype(int)
 
 # Save to .csv and display
-df_618_crosstab.to_csv("../../outputs/section6/csv/recoded/618_recoded.csv")
+#df_618_crosstab.to_csv("../../outputs/section6/csv/recoded/618_recoded.csv")
 df_618_crosstab
 
 # %%
@@ -1318,21 +1262,6 @@ donut(df_619_crosstab_owner_V2,
 data[col.q51[0]].value_counts()
 
 # %%
-def transform_51(x):
-    """
-    Function to be applied to dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-    """
-
-    # Tally occurrence of each answer
-    if response in x[col.q51[0]]:
-        return response
-    else:
-        return None
-
 # Specifying desired order for outputs
 ans_51 = ["Growing demand from customers",
           "Servicing is increasingly profitable work",
@@ -1350,7 +1279,7 @@ for n in range(0, len(ans_51)-1):
     # Create new column for each answer option
     response = ans_51[n]
     new_col = "SQ51Ans"+str(n+1)
-    data[new_col] = data.apply(transform_51, axis=1)
+    data[new_col] = data.apply(transform, args = (ans_51, col.q51), axis=1)
 
     # Stack columns
     df = data.filter(["EmploymentType", new_col])
@@ -1367,7 +1296,7 @@ df_620_crosstab = df_620_crosstab.fillna(0)
 df_620_crosstab = df_620_crosstab.astype(int)
 
 # Save to .csv and display
-df_620_crosstab.to_csv("../../outputs/section6/csv/620.csv")
+#df_620_crosstab.to_csv("../../outputs/section6/csv/620.csv")
 df_620_crosstab
 
 # %%
@@ -1445,21 +1374,6 @@ data[col.q52a[0]].value_counts()
 data[col.q52b[0]].value_counts()
 
 # %%
-def transform_52(x):
-    """
-    Function to be applied to dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-    """
-
-    # Tally occurrence of each answer    
-    if response in x[col.q52a[0]] or response in x[col.q52b[0]]:
-        return response
-    else:
-        return None
-
 # Specifying desired order for outputs
 ans_52 = ["Too little demand from customers",
           "Not profitable enough",
@@ -1479,7 +1393,7 @@ for n in range(0, len(ans_52)-1):
     # Create new column for each answer option
     response = ans_52[n]
     new_col = "SQ52Ans"+str(n+1)
-    data[new_col] = data.apply(transform_52, axis=1)
+    data[new_col] = data.apply(transform, args = (ans_52, col.q52a, col.q52b), axis=1)
 
     # Stack columns
     df = data.filter(["EmploymentType", new_col])
@@ -1496,7 +1410,7 @@ df_622_crosstab = df_622_crosstab.fillna(0)
 df_622_crosstab = df_622_crosstab.astype(int)
 
 # Save to .csv and display
-df_622_crosstab.to_csv("../../outputs/section6/csv/622.csv")
+#df_622_crosstab.to_csv("../../outputs/section6/csv/622.csv")
 df_622_crosstab
 
 # %%
@@ -1617,8 +1531,8 @@ donut(df_623_crosstab_employee_V2,
 
 # %%
 # Display dataframes to be merged
-df_618_crosstab
-df_622_crosstab
+df_618_crosstab # don't currently offer but intending to
+df_622_crosstab # don't curren't offer and don't intend to
 
 # %%
 # Create new df_618_crosstab with dummy column to match df_622_crosstab

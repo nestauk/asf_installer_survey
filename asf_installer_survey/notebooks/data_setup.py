@@ -679,6 +679,44 @@ def location_crosstab(sq_col) -> pd.DataFrame:
 # #### Functions to explode multiple response answers
 
 # %%
+def transform(x, answer_list, column1, column2 = None):
+    """
+    Function to be applied to each row of a dataframe which separates answers selected
+    by creating an individual tally column for each possible answer. 
+
+    Args:
+        x: pandas dataframe containing responses from analytical sample.
+        column1: Survey question column of interest e.g. col.q44a
+        column2: If applicable, second survey question column of interest e.g. col.q44b
+        answer_list: List containing strings of each possible answer to survey question.
+    """
+
+    # Only one question column 
+    if column2 == None:
+        # Tally occurrence of each answer
+        if response in x[column1[0]]:
+            return response
+        elif "Not asked" in x[column1[0]]:
+            return None
+        # Checking for any unexpected responses
+        elif (response not in x[column1[0]]) and (type(x[column1[0]]) == np.ndarray) and (x[column1[0]].all() in answer_list):
+            return None
+        elif (response not in x[column1[0]]) and (type(x[column1[0]]) == str) and (x[column1[0]] in answer_list):
+            return None
+        else:
+            return ValueError
+    
+    else:
+        # Tally occurrence of each answer
+        if response in x[column1[0]] or response in x[column2[0]]:
+            return response
+        elif "Not asked" in x[column1[0]] or "Not asked" in x[column2[0]]:
+            return None
+        else:
+            return ValueError 
+
+
+# %%
 def explode_select_all(column: pd.Series) -> pd.DataFrame:
     """Explode Series of lists to boolean dataframe"""
     responses = set([item for items in column for item in items])
