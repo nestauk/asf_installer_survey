@@ -1,21 +1,3 @@
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     comment_magics: true
-#     custom_cell_magics: kql
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: installersurvey
-#     language: python
-#     name: python3
-# ---
-
 # %% [markdown]
 # ## Section 9: Apprenticeships and entry level installer roles
 # **Aims:** Generating outputs for Section 9 (RQs 9.01 - 9.26) as planned in [Heat Pump Installer Survey data analysis plan](https://docs.google.com/document/d/1M1nzdf3fyTjipmaKJKViin0EB3e3R1afOQglwMGJaII/edit#heading=h.jzmlm8j0kyve)<br>
@@ -28,9 +10,34 @@
 # %%
 with open("data_setup.py") as file:
     exec(file.read())
+"""
+Running "data_setup.py" does the following:
+- Imports survey question numbers lookups class as col
+- Imports cleaned, anonymised survey analytical sample data as data
+- Adds new columns to the data dataframe for each sub-population category,
+column names are:
+-- EmploymentType
+-- CompanySizeOwnerV2
+-- CompanySizeEmployeeV2
+-- SectorTime
+-- NumberInstalls
+-- DesiredIncrease
+- Defines the following functions to generate cross tables:
+-- crosstable(subpop, dataframe, x, ans)
+-- location_crosstab(sq_col)
+-- explode_select_all(column)
+- Defines the following functions to generate figures:
+-- stackedbar(df, number, question, section)
+-- groupedbar(df, number, question, section)
+-- donut(df, number, question, section)
+"""
 
 with open("free_text_recode.py") as file:
     exec(file.read())
+"""
+Running "free_text_recode.py" re-assigns 'Other' free text responses to Select all that apply type questions
+by re-assigning them to a  new or existing answer, or keeping them as 'Other'
+"""
 
 # %%
 from matplotlib import pyplot as plt
@@ -135,9 +142,6 @@ df_902 = df_902.astype(int)
 #            )
 
 # %%
-df_902
-
-# %%
 # Chi-square test to test for association
 df_902_chi2 = df_902.drop(columns=["Total"], index=["Total", "Don't work with heat pumps"])
 chi_val, p_val, dof, exp_val = chi2_contingency(df_902_chi2.to_numpy())
@@ -205,7 +209,7 @@ df_904
 # - Broken down by Q37 ("NumberInstalls")
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Number of installs
@@ -237,7 +241,7 @@ groupedbar(df_905,
 # - Broken down by Q38
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Desired increase in installs
@@ -363,9 +367,8 @@ df_907 = df_907.astype(int)
 df_907 = df_907.drop(index=['Employee', 'Contractor'])
 
 # Save to .csv and display
-df_907.to_csv("../../outputs/section9/csv/907.csv")
+#df_907.to_csv("../../outputs/section9/csv/907.csv")
 df_907
-
 
 # %%
 # Check to ensure that 'I don't face any challenges' was the ONLY option selected
@@ -442,7 +445,6 @@ df_908 = df_908.astype(int)
 df_908.to_csv("../../outputs/section9/csv/908.csv")
 df_908
 
-
 # %% [markdown]
 # ### RQ 9.09 | How do the challenges that survey participants who’ve taken on an apprentice to work on heat pumps differ depending on the size of the company they own?
 # - SQ 81
@@ -495,7 +497,6 @@ df_909 = df_909.astype(int)
 # Save to .csv and display
 df_909.to_csv("../../outputs/section9/csv/909.csv")
 df_909
-
 
 # %% [markdown]
 # ### RQ 9.10 | What challenges do survey participants who haven’t taken on an apprentice to work on heat pumps foresee with doing so?
@@ -576,7 +577,6 @@ df_910 = df_910.drop(index=['Employee', 'Contractor'])
 # Save to .csv and display
 df_910.to_csv("../../outputs/section9/csv/910.csv")
 df_910
-
 
 # %% [markdown]
 # ### RQ 9.11 | How do the foreseen challenges that survey participants who haven’t taken on an apprentice to work on heat pumps differ depending on the length of time they’ve been in the sector?
@@ -683,7 +683,7 @@ df_912
 # - Standard_output
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Print possible answers
@@ -742,7 +742,7 @@ df_913_size
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # N.B. This is a Select all that apply type question
-#
+# 
 
 # %%
 # Print possible answers
@@ -837,7 +837,7 @@ df_914
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # N.B. This is a Select all that apply type question
-#
+# 
 
 # %%
 # Create separate dataframe that stacks all answer columns
@@ -874,7 +874,7 @@ df_915
 # - Standard_output
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Print possible answers
@@ -927,11 +927,11 @@ df_916
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # Collapsed categories:
-#
+# 
 # - Unlikely <- Very unlikely; Unlikely
 # - Neutral <- Neutral
 # - Likely <- Likely; Very likely
-#
+# 
 
 # %%
 # Print possible answers
@@ -1028,7 +1028,6 @@ df_917_collapsed = df_917_collapsed.drop(index=['Employee', 'Contractor'])
 df_917_collapsed.to_csv("../../outputs/section9/csv/917_collapsed.csv")
 df_917_collapsed
 
-
 # %% [markdown]
 # ### RQ 9.18 | How does the likelihood of survey participants taking on candidates with paper qualifications but no practical or vocational experience in the field differ depending on the size of company they own?
 # - SQ 86
@@ -1038,11 +1037,11 @@ df_917_collapsed
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
 # <p>
 # Collapsed categories:
-#
+# 
 # - Unlikely <- Very unlikely; Unlikely
 # - Neutral <- Neutral
 # - Likely <- Likely; Very likely
-#
+# 
 
 # %% [markdown]
 # **Non-collapsed version**
@@ -1096,10 +1095,10 @@ df_918_collapsed
 # - SQ 87
 # - Sample:
 # - Standard_output
-#
+# 
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Convert "Not asked" to None
@@ -1136,10 +1135,10 @@ df_919
 # - SQ 87
 # - Sample:
 # - Company_size_owner
-#
+# 
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Generate crosstable
@@ -1160,10 +1159,10 @@ df_920
 # - SQ 88
 # - Sample:
 # - Standard_output
-#
+# 
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Print possible answers
@@ -1204,10 +1203,10 @@ df_921
 # - SQ 88
 # - Sample:
 # - Company_size_owner
-#
+# 
 # <p>
 # Only asked company owners (n = 163) and sole traders (n = 38) -> N = 201
-#
+# 
 
 # %%
 # Generate crosstable
@@ -1228,10 +1227,10 @@ df_922
 # - SQ 89a
 # - Sample:
 # - Standard_output
-#
+# 
 # <p>
 # Of company owners and sole traders who were asked SQ 86: 89a was asked if they answered "Very likely" (n=5) or "Likely" (n=9) -> N = 14
-#
+# 
 
 # %%
 df_917_uncollapsed
@@ -1275,10 +1274,10 @@ df_923
 # - SQ 89b
 # - Sample:
 # - Standard_output
-#
+# 
 # <p>
 # Of company owners and sole traders who were asked SQ 86: 89b was asked if they answered "Neutral" (n=50), "Unlikely (n=57) or "Very unlikely" (n=77) -> N = 184
-#
+# 
 
 # %%
 # Print possible answers
@@ -1320,7 +1319,7 @@ df_924
 # - SQ 89a, 89b
 # - Sample:
 # - Standard_output
-#
+# 
 
 # %%
 def condition_q89(x):
@@ -1395,7 +1394,7 @@ df_925
 # - SQ 89a, 89b
 # - Sample:
 # - Company_size_owner
-#
+# 
 
 # %%
 # Generate crosstab dataframe

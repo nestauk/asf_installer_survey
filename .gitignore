@@ -21,7 +21,7 @@ metaflow.s3.*
 .run_id
 
 # Notebooks (use jupytext instead!)
-*.ipynb
+#*.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

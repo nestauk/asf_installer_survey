@@ -1,21 +1,3 @@
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     comment_magics: true
-#     custom_cell_magics: kql
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: Python 3
-#     language: python
-#     name: python3
-# ---
-
 # %% [markdown]
 # ### Data setup and pre-processing
 # **Aims:** (1) Processing installer survey results dataset and including only analytical sample. (2) Defining categories for sub-populations.<br>
@@ -27,7 +9,7 @@
 # * Populating analytical sample
 # * Sub-population outputs
 # * Functions to generate figures
-#
+# 
 
 # %% [markdown]
 # #### Importing packages and data
@@ -48,6 +30,7 @@ from utils.lookups import QuestionNumbers as col
 
 # %%
 # Load data
+
 data_path_parquet = """/mnt/g/Shared drives/A Sustainable Future/1. Reducing household emissions/\
 2. Projects Research Work/36. Installer survey/05 survey data/20240201_Installer_survey_clean_data_anonymised.parquet"""
 
@@ -97,7 +80,6 @@ data = data.reset_index(drop=True)
 # %%
 # Create dictionary to store lists specifying desired order
 order_dict = {}
-
 
 # %% [markdown]
 # ##### Employment type
@@ -152,7 +134,6 @@ order_dict.update({category:order})
 # Summary of EmploymentType column
 data[category].value_counts()
 
-
 # %% [markdown]
 # ##### Sizes of companies owned
 # N.B. There are two versions of the categorisation criteria. As of 11.04.2024, only outputs with version 2 categorisation are generated.
@@ -205,7 +186,6 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # **Version 2 of collapsed categories**
 
@@ -247,10 +227,9 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # ##### Size of company (employees)
-#
+# 
 # N.B. There are two versions of the categorisation criteria. As of 11.04.2024, only outputs with version 2 categorisation are generated.)
 
 # %% [markdown]
@@ -302,7 +281,6 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # **Version 2 of collapsed categories**
 
@@ -343,7 +321,6 @@ order_dict.update({category:order})
 
 # Summary of category column
 data[category].value_counts()
-
 
 # %% [markdown]
 # ##### Length of time in the heat pump sector
@@ -405,7 +382,6 @@ data[col.q37a].value_counts()
 
 # %%
 data[col.q37b].value_counts()
-
 
 # %%
 def condition_q37(x):
@@ -482,7 +458,6 @@ data[col.q9d].value_counts()
 data[col.q38a].value_counts()
 data[col.q38b].value_counts()
 
-
 # %%
 def condition_desired_increase(x):
     """
@@ -531,7 +506,6 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # #### Functions to generate crosstables
 
@@ -558,7 +532,6 @@ def crosstable(subpop, dataframe, x, ans) -> pd.DataFrame:
     df = df.reindex(order_dict[subpop], axis='rows')
 
     return df
-
 
 # %%
 def location_crosstab(sq_col) -> pd.DataFrame:
@@ -673,9 +646,8 @@ def location_crosstab(sq_col) -> pd.DataFrame:
     
     return df_p_stacked, df_p_crosstab
 
-
 # %% [markdown]
-# #### Functions to explode multiple response answers
+# #### Functions to explode multiple response answers 
 
 # %%
 def explode_select_all(column: pd.Series) -> pd.DataFrame:
@@ -685,7 +657,6 @@ def explode_select_all(column: pd.Series) -> pd.DataFrame:
         [pd.Series(column.apply(lambda x: response in x), name=response) for response in responses],
         axis=1
     )
-
 
 # %% [markdown]
 # #### Functions to generate figures
@@ -721,7 +692,6 @@ def wrap_labels(ax, width, break_long_words=False):
                                     ))
         
     ax.set_xticklabels(labels, rotation=0)
-
 
 # %%
 def stackedbar(df, number, question, section="section6"):
@@ -782,7 +752,6 @@ def stackedbar(df, number, question, section="section6"):
                 bbox_inches="tight",
                 dpi=600
                 )
-
 
 # %%
 def groupedbar(df, number, question, section="section6"):
@@ -848,7 +817,6 @@ def groupedbar(df, number, question, section="section6"):
                 dpi=600
                 )
 
-
 # %%
 def donut(df, number, question, section="section6"):
     """
@@ -912,3 +880,5 @@ def donut(df, number, question, section="section6"):
 
     # Display chart
     plt.show()
+
+
