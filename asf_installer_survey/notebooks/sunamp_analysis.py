@@ -10,12 +10,33 @@
 %%capture
 
 # Run pre-processing
-%run data_setup.ipynb
+#%run data_setup.ipynb
+with open("data_setup.py") as file:
+    exec(file.read())
 
 from matplotlib import pyplot as plt
 
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
+
+# %% [markdown]
+# Define function to create expanded dataframe for select all apply type questions
+
+# %%
+def select_all_apply_transformation(response_list, column_of_interest, column_for_breakdown):
+    
+    stacked_responses = pd.DataFrame()
+
+    for n in range(0, len(response_list)-1):
+        response = response_list[n]
+        new_col = column_of_interest + str(n+1)
+        data[new_col] = data.apply(transform, args = (response, response_list, column_of_interest), axis = 1)
+
+        stacked_responses_individual = data.filter([column_for_breakdown, new_col])
+        stacked_responses_individual = stacked_responses_individual.rename(columns={new_col:column_of_interest})
+        stacked_responses = pd.concat([stacked_responses, stacked_responses_individual])
+    
+    return stacked_responses
 
 # %% [markdown]
 # Q1
@@ -67,42 +88,23 @@ responses_q7 = question_7.index.to_list()
 responses_q7.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_7_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q7)-1):
+# SQ 18
+response_list = responses_q7
+column_of_interest = col.q7
 
-    response = responses_q7[n]
-    new_col = "SQ7Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q7, col.q7), axis = 1)
-    
-    df_q7_sq18 = data.filter([col.q18, new_col])
-    df_q7_sq18 = df_q7_sq18.rename(columns={new_col:"SQ7"})
-    stacked_question_7_sq18 = pd.concat([stacked_question_7_sq18, df_q7_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q7_sq18 = pd.crosstab(stacked_question_7_sq18["SQ7"], stacked_question_7_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q7_sq18 = crosstab_q7_sq18.fillna(0)
-crosstab_q7_sq18 = crosstab_q7_sq18.astype(int)
-stacked_question_7_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_7_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q7)-1):
-
-    response = responses_q7[n]
-    new_col = "SQ7Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q7, col.q7), axis = 1)
-    
-    df_q7_sq101 = data.filter([col.q101, new_col])
-    df_q7_sq101 = df_q7_sq101.rename(columns={new_col:"SQ7"})
-    stacked_question_7_sq101 = pd.concat([stacked_question_7_sq101, df_q7_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q7_sq101 = pd.crosstab(stacked_question_7_sq101["SQ7"], stacked_question_7_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q7_sq101 = crosstab_q7_sq101.fillna(0)
-crosstab_q7_sq101 = crosstab_q7_sq101.astype(int)
-crosstab_q7_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %% [markdown]
 # Q8 - Select all that apply
@@ -113,42 +115,23 @@ responses_q8 = question_8.index.to_list()
 responses_q8.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_8_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q8)-1):
+# SQ 18
+response_list = responses_q8
+column_of_interest = col.q8
 
-    response = responses_q8[n]
-    new_col = "SQ8Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q8, col.q8), axis = 1)
-    
-    df_q8_sq18 = data.filter([col.q18, new_col])
-    df_q8_sq18 = df_q8_sq18.rename(columns={new_col:"SQ8"})
-    stacked_question_8_sq18 = pd.concat([stacked_question_8_sq18, df_q8_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q8_sq18 = pd.crosstab(stacked_question_8_sq18["SQ8"], stacked_question_8_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q8_sq18 = crosstab_q8_sq18.fillna(0)
-crosstab_q8_sq18 = crosstab_q8_sq18.astype(int)
-crosstab_q8_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_8_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q8)-1):
-
-    response = responses_q8[n]
-    new_col = "SQ8Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q8, col.q8), axis = 1)
-    
-    df_q8_sq101 = data.filter([col.q101, new_col])
-    df_q8_sq101 = df_q8_sq101.rename(columns={new_col:"SQ8"})
-    stacked_question_8_sq101 = pd.concat([stacked_question_8_sq101, df_q8_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q8_sq101 = pd.crosstab(stacked_question_8_sq101["SQ8"], stacked_question_8_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q8_sq101 = crosstab_q8_sq101.fillna(0)
-crosstab_q8_sq101 = crosstab_q8_sq101.astype(int)
-crosstab_q8_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %% [markdown]
 # Q10
@@ -172,42 +155,23 @@ responses_q19 = question_19.index.to_list()
 responses_q19.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_19_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q19)-1):
+# SQ 18
+response_list = responses_q19
+column_of_interest = col.q19[0]
 
-    response = responses_q19[n]
-    new_col = "SQ19Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q19, col.q19[0]), axis = 1)
-    
-    df_q19_sq18 = data.filter([col.q18, new_col])
-    df_q19_sq18 = df_q19_sq18.rename(columns={new_col:"SQ19"})
-    stacked_question_19_sq18 = pd.concat([stacked_question_19_sq18, df_q19_sq18])
-
-# Generate crosstab dataframe
-crosstab_q19_sq18 = pd.crosstab(stacked_question_19_sq18["SQ19"], stacked_question_19_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q19_sq18 = crosstab_q19_sq18.fillna(0)
-crosstab_q19_sq18 = crosstab_q19_sq18.astype(int)
-crosstab_q19_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_19_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q19)-1):
-
-    response = responses_q19[n]
-    new_col = "SQ19Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q19, col.q19[0]), axis = 1)
-    
-    df_q19_sq101 = data.filter([col.q101, new_col])
-    df_q19_sq101 = df_q19_sq101.rename(columns={new_col:"SQ19"})
-    stacked_question_19_sq101 = pd.concat([stacked_question_19_sq101, df_q19_sq101])
-
-# Generate crosstab dataframe
-crosstab_q19_sq101 = pd.crosstab(stacked_question_19_sq101["SQ19"], stacked_question_19_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q19_sq101 = crosstab_q19_sq101.fillna(0)
-crosstab_q19_sq101 = crosstab_q19_sq101.astype(int)
-crosstab_q19_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %%
 # Recording responses to Q18 and Q101 from respondents who gave free text responses
@@ -361,48 +325,26 @@ responses_q70 = question_70.index.to_list()
 responses_q70.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_70_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q70)-1):
+# SQ 18
+response_list = responses_q70
+column_of_interest = col.q70[0]
 
-    response = responses_q70[n]
-    new_col = "SQ70Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q70, col.q70[0]), axis = 1)
-    
-    df_q113_sq18 = data.filter([col.q18, new_col])
-    df_q113_sq18 = df_q113_sq18.rename(columns={new_col:"SQ70"})
-    stacked_question_70_sq18 = pd.concat([stacked_question_70_sq18, df_q113_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q70_sq18 = pd.crosstab(stacked_question_70_sq18["SQ70"], stacked_question_70_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q70_sq18 = crosstab_q70_sq18.fillna(0)
-crosstab_q70_sq18 = crosstab_q70_sq18.astype(int)
-crosstab_q70_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_70_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q70)-1):
-
-    response = responses_q70[n]
-    new_col = "SQ70Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q70, col.q70[0]), axis = 1)
-    
-    df_q70_sq101 = data.filter([col.q101, new_col])
-    df_q70_sq101 = df_q70_sq101.rename(columns={new_col:"SQ70"})
-    stacked_question_70_sq101 = pd.concat([stacked_question_70_sq101, df_q70_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q70_sq101 = pd.crosstab(stacked_question_70_sq101["SQ70"], stacked_question_70_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q70_sq101 = crosstab_q70_sq101.fillna(0)
-crosstab_q70_sq101 = crosstab_q70_sq101.astype(int)
-crosstab_q70_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %% [markdown]
 # Q97 - Select all that apply
-
-# %%
-col.q97
 
 # %%
 question_97 = pd.DataFrame(explode_select_all(data[col.q97[0]]).sum())
@@ -410,42 +352,23 @@ responses_q97 = question_97.index.to_list()
 responses_q97.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_97_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q97)-1):
+# SQ 18
+response_list = responses_q97
+column_of_interest = col.q97[0]
 
-    response = responses_q97[n]
-    new_col = "SQ97Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q97, col.q97[0]), axis = 1)
-    
-    df_q97_sq18 = data.filter([col.q18, new_col])
-    df_q97_sq18 = df_q97_sq18.rename(columns={new_col:"SQ97"})
-    stacked_question_97_sq18 = pd.concat([stacked_question_97_sq18, df_q97_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q97_sq18 = pd.crosstab(stacked_question_97_sq18["SQ97"], stacked_question_97_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q97_sq18 = crosstab_q97_sq18.fillna(0)
-crosstab_q97_sq18 = crosstab_q97_sq18.astype(int)
-crosstab_q97_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_97_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q97)-1):
-
-    response = responses_q97[n]
-    new_col = "SQ97Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q97, col.q97[0]), axis = 1)
-    
-    df_q97_sq101 = data.filter([col.q101, new_col])
-    df_q97_sq101 = df_q97_sq101.rename(columns={new_col:"SQ97"})
-    stacked_question_97_sq101 = pd.concat([stacked_question_97_sq101, df_q97_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q97_sq101 = pd.crosstab(stacked_question_97_sq101["SQ97"], stacked_question_97_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q97_sq101 = crosstab_q97_sq101.fillna(0)
-crosstab_q97_sq101 = crosstab_q97_sq101.astype(int)
-crosstab_q97_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %% [markdown]
 # Q100
@@ -487,50 +410,28 @@ pd.DataFrame(data[col.q104[1]].value_counts())
 # Q107
 
 # %%
-col.q107
-
-# %%
 question_107 = pd.DataFrame(explode_select_all(data[col.q107[0]]).sum())
 responses_q107 = question_107.index.to_list()
 responses_q107.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_107_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q107)-1):
+# SQ 18
+response_list = responses_q107
+column_of_interest = col.q107[0]
 
-    response = responses_q107[n]
-    new_col = "SQ107Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q107, col.q107[0]), axis = 1)
-    
-    df_q107_sq18 = data.filter([col.q18, new_col])
-    df_q107_sq18 = df_q107_sq18.rename(columns={new_col:"SQ107"})
-    stacked_question_107_sq18 = pd.concat([stacked_question_107_sq18, df_q107_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q107_sq18 = pd.crosstab(stacked_question_107_sq18["SQ107"], stacked_question_107_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q107_sq18 = crosstab_q107_sq18.fillna(0)
-crosstab_q107_sq18 = crosstab_q107_sq18.astype(int)
-crosstab_q107_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_107_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q107)-1):
-
-    response = responses_q107[n]
-    new_col = "SQ107Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q107, col.q107[0]), axis = 1)
-    
-    df_q107_sq101 = data.filter([col.q101, new_col])
-    df_q107_sq101 = df_q107_sq101.rename(columns={new_col:"SQ107"})
-    stacked_question_107_sq101 = pd.concat([stacked_question_107_sq101, df_q107_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q107_sq101 = pd.crosstab(stacked_question_107_sq101["SQ107"], stacked_question_107_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q107_sq101 = crosstab_q107_sq101.fillna(0)
-crosstab_q107_sq101 = crosstab_q107_sq101.astype(int)
-crosstab_q107_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %%
 pd.DataFrame(data[col.q107[1]].value_counts())
@@ -544,42 +445,23 @@ responses_q112 = question_112.index.to_list()
 responses_q112.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_112_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q112)-1):
+# SQ 18
+response_list = responses_q112
+column_of_interest = col.q112[0]
 
-    response = responses_q112[n]
-    new_col = "SQ112Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q112, col.q112[0]), axis = 1)
-    
-    df_q112_sq18 = data.filter([col.q18, new_col])
-    df_q112_sq18 = df_q112_sq18.rename(columns={new_col:"SQ112"})
-    stacked_question_112_sq18 = pd.concat([stacked_question_112_sq18, df_q112_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q112_sq18 = pd.crosstab(stacked_question_112_sq18["SQ112"], stacked_question_112_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q112_sq18 = crosstab_q112_sq18.fillna(0)
-crosstab_q112_sq18 = crosstab_q112_sq18.astype(int)
-crosstab_q112_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_112_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q112)-1):
-
-    response = responses_q112[n]
-    new_col = "SQ112Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q112, col.q112[0]), axis = 1)
-    
-    df_q112_sq101 = data.filter([col.q101, new_col])
-    df_q112_sq101 = df_q112_sq101.rename(columns={new_col:"SQ112"})
-    stacked_question_112_sq101 = pd.concat([stacked_question_112_sq101, df_q112_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q112_sq101 = pd.crosstab(stacked_question_112_sq101["SQ112"], stacked_question_112_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q112_sq101 = crosstab_q112_sq101.fillna(0)
-crosstab_q112_sq101 = crosstab_q112_sq101.astype(int)
-crosstab_q112_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %%
 pd.DataFrame(data[col.q112[1]].value_counts())
@@ -593,42 +475,23 @@ responses_q113 = question_113.index.to_list()
 responses_q113.append('Total')
 
 # %%
-# By SQ 18
-stacked_question_113_sq18 = pd.DataFrame()
-for n in range(0, len(responses_q113)-1):
+# SQ 18
+response_list = responses_q113
+column_of_interest = col.q113[0]
 
-    response = responses_q113[n]
-    new_col = "SQ113Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q113, col.q113[0]), axis = 1)
-    
-    df_q113_sq18 = data.filter([col.q18, new_col])
-    df_q113_sq18 = df_q113_sq18.rename(columns={new_col:"SQ113"})
-    stacked_question_113_sq18 = pd.concat([stacked_question_113_sq18, df_q113_sq18])
-    
-# Generate crosstab dataframe
-crosstab_q113_sq18 = pd.crosstab(stacked_question_113_sq18["SQ113"], stacked_question_113_sq18[col.q18], margins=True, margins_name='Total')
-crosstab_q113_sq18 = crosstab_q113_sq18.fillna(0)
-crosstab_q113_sq18 = crosstab_q113_sq18.astype(int)
-crosstab_q113_sq18
+stacked_responses_sq18 = select_all_apply_transformation(response_list, column_of_interest, col.q18)
+crosstab_sq18 = pd.crosstab(stacked_responses_sq18[column_of_interest], stacked_responses_sq18[col.q18], margins = True, margins_name = 'Total')
+crosstab_sq18 = crosstab_sq18.fillna(0)
+crosstab_sq18 = crosstab_sq18.astype(int)
+crosstab_sq18
 
 # %%
-# By SQ 101
-stacked_question_113_sq101 = pd.DataFrame()
-for n in range(0, len(responses_q113)-1):
-
-    response = responses_q113[n]
-    new_col = "SQ113Ans"+str(n+1)
-    data[new_col] = data.apply(transform, args = (responses_q113, col.q113[0]), axis = 1)
-    
-    df_q113_sq101 = data.filter([col.q101, new_col])
-    df_q113_sq101 = df_q113_sq101.rename(columns={new_col:"SQ113"})
-    stacked_question_113_sq101 = pd.concat([stacked_question_113_sq101, df_q113_sq101])
-    
-# Generate crosstab dataframe
-crosstab_q113_sq101 = pd.crosstab(stacked_question_113_sq101["SQ113"], stacked_question_113_sq101[col.q101], margins=True, margins_name='Total')
-crosstab_q113_sq101 = crosstab_q113_sq101.fillna(0)
-crosstab_q113_sq101 = crosstab_q113_sq101.astype(int)
-crosstab_q113_sq101
+# SQ 101
+stacked_responses_sq101 = select_all_apply_transformation(response_list, column_of_interest, col.q101)
+crosstab_sq101 = pd.crosstab(stacked_responses_sq101[column_of_interest], stacked_responses_sq101[col.q101], margins = True, margins_name = 'Total')
+crosstab_sq101 = crosstab_sq101.fillna(0)
+crosstab_sq101 = crosstab_sq101.astype(int)
+crosstab_sq101
 
 # %%
 pd.DataFrame(data[col.q113[1]].value_counts())

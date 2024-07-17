@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     comment_magics: true
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+#   kernelspec:
+#     display_name: installersurvey
+#     language: python
+#     name: python3
+# ---
+
 # %% [markdown]
 # ### Data setup and pre-processing
 # **Aims:** (1) Processing installer survey results dataset and including only analytical sample. (2) Defining categories for sub-populations.<br>
@@ -9,7 +27,7 @@
 # * Populating analytical sample
 # * Sub-population outputs
 # * Functions to generate figures
-# 
+#
 
 # %% [markdown]
 # #### Importing packages and data
@@ -24,13 +42,12 @@ from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
 
 # # Import questions from lookups class
-# import sys
-# sys.path.insert(0,"..")
-# from utils.lookups import QuestionNumbers as col
+import sys
+sys.path.insert(0,"..")
+from utils.lookups import QuestionNumbers as col
 
 # Import questions from lookups class
-from lookups import QuestionNumbers as col
-from matplotlib import pyplot as plt
+#from lookups import QuestionNumbers as col
 
 # %%
 # Load data
@@ -233,7 +250,7 @@ data[category].value_counts()
 
 # %% [markdown]
 # ##### Size of company (employees)
-# 
+#
 # N.B. There are two versions of the categorisation criteria. As of 11.04.2024, only outputs with version 2 categorisation are generated.)
 
 # %% [markdown]
@@ -663,38 +680,50 @@ def explode_select_all(column: pd.Series) -> pd.DataFrame:
     )
 
 # %%
-def transform(x, answer_list, column1, column2 = None):
+def transform(x, response, answer_list, column1, column2 = None, column3 = None):
     """
     Function to be applied to each row of a dataframe which separates answers selected
     by creating an individual tally column for each possible answer. 
 
     Args:
         x: pandas dataframe containing responses from analytical sample.
-        column1: Survey question column of interest e.g. col.q44a
-        column2: If applicable, second survey question column of interest e.g. col.q44b
+        response: Answer of interest.
+        column1: Survey question column of interest e.g. col.q44a[0]
+        column2: If applicable, second survey question column of interest e.g. col.q44b[0]
         answer_list: List containing strings of each possible answer to survey question.
     """
 
     # Only one question column 
     if column2 == None:
         # Tally occurrence of each answer
-        if response in x[column1[0]]:
+        if response in x[column1]:
             return response
-        elif "Not asked" in x[column1[0]]:
+        elif "Not asked" in x[column1]:
             return None
         # Checking for any unexpected responses
-        elif (response not in x[column1[0]]) and (type(x[column1[0]]) == np.ndarray) and (x[column1[0]].all() in answer_list):
+        elif (response not in x[column1]) and (type(x[column1]) == np.ndarray) and (x[column1].all() in answer_list):
             return None
-        elif (response not in x[column1[0]]) and (type(x[column1[0]]) == str) and (x[column1[0]] in answer_list):
+        elif (response not in x[column1]) and (type(x[column1]) == str) and (x[column1] in answer_list):
+            return None
+        else:
+            return ValueError
+     
+    # Two question columns
+    elif column3 == None:
+        # Tally occurrence of each answer
+        if response in x[column1] or response in x[column2]:
+            return response
+        elif "Not asked" in x[column1] or "Not asked" in x[column2]:
             return None
         else:
             return ValueError
     
+    # Three question columns
     else:
         # Tally occurrence of each answer
-        if response in x[column1[0]] or response in x[column2[0]]:
+        if response in x[column1] or response in x[column2] or response in x[column3]:
             return response
-        elif "Not asked" in x[column1[0]] or "Not asked" in x[column2[0]]:
+        elif "Not asked" in x[column1] or "Not asked" in x[column2] or "Not asked" in x[column3]:
             return None
         else:
             return ValueError 
