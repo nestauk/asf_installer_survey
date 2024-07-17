@@ -1,20 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     comment_magics: true
-#     custom_cell_magics: kql
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: installersurvey
-#     language: python
-#     name: python3
-# ---
-
 # %% [markdown]
 # ### Re-coding free text 'Other' responses 
 # **Aim:** Address free text responses to <i>Select all that apply</i> type questions by re-writing them as a new/existing answer or keep as 'Other'<br>
@@ -22,18 +5,18 @@
 # **Date:** 2024-04-17<br>
 # <br>
 # Responses are recoded as outlined in the [Free responses re-coding](#https://docs.google.com/document/d/1wWXNAikUtgrT_ZY3pCLF1FIVBt-FlYToVygo8Apk6Ok/edit#heading=h.4bf7bxjgagav) document.
-#
+# 
 
 # %%
 with open("data_setup.py") as file:
     exec(file.read())
 
-
 # %% [markdown]
 # ### Functions
 
 # %%
-def get_index(recode):
+from typing import List
+def get_index(recode: List) -> pd.DataFrame:
     """
     Function to create dictionary where
     key is response ID and value is dataframe index.
@@ -45,7 +28,6 @@ def get_index(recode):
         response[id]: dictionary {id:index}
     """
 
-    # %run data_setup.py
     # Get row indices
     indices = []
     for id in recode:
@@ -54,7 +36,6 @@ def get_index(recode):
 
     # Map lists in dictionary
     return {recode[i]: indices[i] for i in range(len(recode))}
-
 
 # %% [markdown]
 # ### Section 6
@@ -68,7 +49,7 @@ def get_index(recode):
 # * 6.17
 
 # %%
-## NEW OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
+# NEW OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
 # Response IDs responses to be recoded
 recode = [641,
           759,
@@ -226,7 +207,7 @@ for id in recode:
 # for id in recode:
 #     print(data.loc[response[id], col.q45[0]].tolist()[0])
 
- # %%
+# %%
  ## EXISTING OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
 # Response IDs responses to be recoded
 recode = [345,
@@ -583,7 +564,6 @@ for id in recode:
     else:
         data.loc[response[id].item(), col.q81[0]] = np.array([["Having an apprentice has cost my business too much"]])
 
-
 # %%
 ## EXISTING OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
 # Response IDs responses to be recoded
@@ -613,7 +593,6 @@ for id in recode:
     # Re-coding if only 'Other' is selected
     else:
         data.loc[response[id].item(), col.q81[0]] = np.array([["It was hard to find the right apprentice to fit with the role"]])
-
 
 # %%
 ## EXISTING OPTION AND SELECT ALL THAT APPLY TYPE QUESTION
@@ -646,7 +625,6 @@ for id in recode:
     # Re-coding if only 'Other' is selected
     else:
         data.at[response[id].item(), col.q81[0]] = np.array([["There are no colleges delivering apprenticeship training of a high enough quality near me"]])
-
 
 # %% [markdown]
 # #### SQ84
@@ -810,3 +788,5 @@ data[col.q89b[0]] = data[col.q89b[0]].cat.add_categories("Other-not relevant")
 # Re-write responses
 for id in recode:
     data.loc[response[id], col.q89b[0]] = "Other-not relevant"
+
+

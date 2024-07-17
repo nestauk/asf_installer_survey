@@ -1,21 +1,3 @@
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     comment_magics: true
-#     custom_cell_magics: kql
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: Python 3
-#     language: python
-#     name: python3
-# ---
-
 # %% [markdown]
 # ### Data setup and pre-processing
 # **Aims:** (1) Processing installer survey results dataset and including only analytical sample. (2) Defining categories for sub-populations.<br>
@@ -27,7 +9,7 @@
 # * Populating analytical sample
 # * Sub-population outputs
 # * Functions to generate figures
-#
+# 
 
 # %% [markdown]
 # #### Importing packages and data
@@ -99,7 +81,6 @@ data = data.reset_index(drop=True)
 # Create dictionary to store lists specifying desired order
 order_dict = {}
 
-
 # %% [markdown]
 # ##### Employment type
 # - Sole trader = Answered “The owner or co-owner of a firm” to SQ 5 AND “I'm a sole trader” to SQ 6a
@@ -153,7 +134,6 @@ order_dict.update({category:order})
 # Summary of EmploymentType column
 data[category].value_counts()
 
-
 # %% [markdown]
 # ##### Sizes of companies owned
 # N.B. There are two versions of the categorisation criteria. As of 11.04.2024, only outputs with version 2 categorisation are generated.
@@ -206,7 +186,6 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # **Version 2 of collapsed categories**
 
@@ -248,10 +227,9 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # ##### Size of company (employees)
-#
+# 
 # N.B. There are two versions of the categorisation criteria. As of 11.04.2024, only outputs with version 2 categorisation are generated.)
 
 # %% [markdown]
@@ -303,7 +281,6 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # **Version 2 of collapsed categories**
 
@@ -344,7 +321,6 @@ order_dict.update({category:order})
 
 # Summary of category column
 data[category].value_counts()
-
 
 # %% [markdown]
 # ##### Length of time in the heat pump sector
@@ -406,7 +382,6 @@ data[col.q37a].value_counts()
 
 # %%
 data[col.q37b].value_counts()
-
 
 # %%
 def condition_q37(x):
@@ -483,7 +458,6 @@ data[col.q9d].value_counts()
 data[col.q38a].value_counts()
 data[col.q38b].value_counts()
 
-
 # %%
 def condition_desired_increase(x):
     """
@@ -532,7 +506,6 @@ order_dict.update({category:order})
 # Summary of category column
 data[category].value_counts()
 
-
 # %% [markdown]
 # #### Functions to generate crosstables
 
@@ -559,7 +532,6 @@ def crosstable(subpop, dataframe, x, ans) -> pd.DataFrame:
     df = df.reindex(order_dict[subpop], axis='rows')
 
     return df
-
 
 # %%
 def location_crosstab(sq_col) -> pd.DataFrame:
@@ -674,47 +646,8 @@ def location_crosstab(sq_col) -> pd.DataFrame:
     
     return df_p_stacked, df_p_crosstab
 
-
 # %% [markdown]
 # #### Functions to explode multiple response answers
-
-# %%
-def transform(x, answer_list, column1, column2 = None):
-    """
-    Function to be applied to each row of a dataframe which separates answers selected
-    by creating an individual tally column for each possible answer. 
-
-    Args:
-        x: pandas dataframe containing responses from analytical sample.
-        column1: Survey question column of interest e.g. col.q44a
-        column2: If applicable, second survey question column of interest e.g. col.q44b
-        answer_list: List containing strings of each possible answer to survey question.
-    """
-
-    # Only one question column 
-    if column2 == None:
-        # Tally occurrence of each answer
-        if response in x[column1[0]]:
-            return response
-        elif "Not asked" in x[column1[0]]:
-            return None
-        # Checking for any unexpected responses
-        elif (response not in x[column1[0]]) and (type(x[column1[0]]) == np.ndarray) and (x[column1[0]].all() in answer_list):
-            return None
-        elif (response not in x[column1[0]]) and (type(x[column1[0]]) == str) and (x[column1[0]] in answer_list):
-            return None
-        else:
-            return ValueError
-    
-    else:
-        # Tally occurrence of each answer
-        if response in x[column1[0]] or response in x[column2[0]]:
-            return response
-        elif "Not asked" in x[column1[0]] or "Not asked" in x[column2[0]]:
-            return None
-        else:
-            return ValueError 
-
 
 # %%
 def explode_select_all(column: pd.Series) -> pd.DataFrame:
@@ -725,6 +658,53 @@ def explode_select_all(column: pd.Series) -> pd.DataFrame:
         axis=1
     )
 
+# %%
+def transform(x, answer_list, column1, column2 = None, column3 = None):
+    """
+    Function to be applied to each row of a dataframe which separates answers selected
+    by creating an individual tally column for each possible answer. 
+
+    Args:
+        x: pandas dataframe containing responses from analytical sample.
+        column1: Survey question column of interest e.g. col.q44a[0]
+        column2: If applicable, second survey question column of interest e.g. col.q44b[0]
+        answer_list: List containing strings of each possible answer to survey question.
+    """
+
+    # Only one question column 
+    if column2 == None:
+        # Tally occurrence of each answer
+        if response in x[column1]:
+            return response
+        elif "Not asked" in x[column1]:
+            return None
+        # Checking for any unexpected responses
+        elif (response not in x[column1]) and (type(x[column1]) == np.ndarray) and (x[column1].all() in answer_list):
+            return None
+        elif (response not in x[column1]) and (type(x[column1]) == str) and (x[column1] in answer_list):
+            return None
+        else:
+            return ValueError
+     
+    # Two question columns
+    elif column3 == None:
+        # Tally occurrence of each answer
+        if response in x[column1] or response in x[column2]:
+            return response
+        elif "Not asked" in x[column1] or "Not asked" in x[column2]:
+            return None
+        else:
+            return ValueError
+    
+    # Three question columns
+    else:
+        # Tally occurrence of each answer
+        if response in x[column1] or response in x[column2] or response in x[column3]:
+            return response
+        elif "Not asked" in x[column1] or "Not asked" in x[column2] or "Not asked" in x[column3]:
+            return None
+        else:
+            return ValueError 
 
 # %% [markdown]
 # #### Functions to generate figures
@@ -760,7 +740,6 @@ def wrap_labels(ax, width, break_long_words=False):
                                     ))
         
     ax.set_xticklabels(labels, rotation=0)
-
 
 # %%
 def stackedbar(df, number, question, section="section6"):
@@ -821,7 +800,6 @@ def stackedbar(df, number, question, section="section6"):
                 bbox_inches="tight",
                 dpi=600
                 )
-
 
 # %%
 def groupedbar(df, number, question, section="section6"):
@@ -887,7 +865,6 @@ def groupedbar(df, number, question, section="section6"):
                 dpi=600
                 )
 
-
 # %%
 def donut(df, number, question, section="section6"):
     """
@@ -951,3 +928,5 @@ def donut(df, number, question, section="section6"):
 
     # Display chart
     plt.show()
+
+
